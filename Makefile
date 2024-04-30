@@ -1,4 +1,5 @@
 export PATH := /app/.local/bin:$(PATH)
+export REPO := https://github.com/joaquinbejar/MarketMimic.git
 VENV_NAME?=venv
 VENV_ACTIVATE=$(VENV_NAME)/bin/activate
 PYTHON_PATH=$(shell which python3.11)
