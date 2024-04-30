@@ -1,56 +1,68 @@
+from typing import Tuple
+
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import Model
 
 from marketmimic.constants import LATENT_DIM
 
 
-def train_gan(generator: Model,
-              discriminator: Model,
-              gan: Model,
-              dataset: np.ndarray,
-              epochs: int = 1000,
-              batch_size: int = 32) -> None:
+@tf.function
+def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
+               real_y: tf.Tensor, fake_y: tf.Tensor) -> Tuple[float, float, float]:
     """
-    Train a Generative Adversarial Network (GAN).
+    Performs a single training step for both the generator and discriminator.
 
     Args:
-    generator (Model): The generator component of the GAN.
-    discriminator (Model): The discriminator component of the GAN.
-    gan (Model): The combined GAN model.
-    dataset (np.ndarray): The dataset to train on.
-    epochs (int, optional): Number of epochs to train for. Defaults to 1000.
-    batch_size (int, optional): Batch size for training. Defaults to 32.
+        generator (Model): The generator component of the GAN.
+        discriminator (Model): The discriminator component of the GAN.
+        gan (Model): The composite model where the generator's output is fed to the discriminator.
+        real_data (np.ndarray): A batch of real data samples.
+        noise (np.ndarray): A batch of random noise vectors.
+        real_y (tf.Tensor): Labels for real data (typically ones).
+        fake_y (tf.Tensor): Labels for fake data (typically zeros).
 
     Returns:
-    None
+        Tuple[float, float, float]: The discriminator loss on real data, discriminator loss on fake data, and generator loss.
+    """
+    # Train discriminator with real data
+    d_loss_real, accuracy_real = discriminator.train_on_batch(real_data, real_y)
+    # Generate fake data
+    fake_data = generator(noise, training=True)
+    # Train discriminator with fake data
+    d_loss_fake, accuracy_fake = discriminator.train_on_batch(fake_data, fake_y)
+    # Train the generator
+    gan_output = gan.train_on_batch(noise, real_y)
+    g_loss = gan_output[0]  # Assuming the first element is the loss
+    return d_loss_real, d_loss_fake, g_loss
+
+
+def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.ndarray, epochs: int,
+              batch_size: int) -> None:
+    """
+    Trains the Generative Adversarial Network.
+
+    Args:
+        generator (Model): The generator model.
+        discriminator (Model): The discriminator model.
+        gan (Model): The composite GAN model.
+        dataset (np.ndarray): The complete dataset for training.
+        epochs (int): The number of epochs to train the models.
+        batch_size (int): The size of each training batch.
+
+    Returns:
+        None: This function does not return any values but will print the training progress.
     """
     for epoch in range(epochs):
-        # ---------------------
-        #  Train Discriminator
-        # ---------------------
-        # Select a random batch of instances
         idx = np.random.randint(0, dataset.shape[0], batch_size)
-        real_data = dataset[idx]
+        real_data = dataset[idx].astype('float32')  # Ensure data is in float32
+        noise = np.random.normal(0, 1, (batch_size, LATENT_DIM)).astype('float32')
+        real_y = tf.ones((batch_size, 1), dtype=tf.float32)
+        fake_y = tf.zeros((batch_size, 1), dtype=tf.float32)
 
-        # Generate fake data
-        noise = np.random.normal(0, 1, (batch_size, LATENT_DIM))
-        fake_data = generator.predict(noise)
+        d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
 
-        # Create labels
-        real_y = np.ones((batch_size, 1))
-        fake_y = np.zeros((batch_size, 1))
-
-        # Train the discriminator (real classified as 1 and fake as 0)
-        d_loss_real = discriminator.train_on_batch(real_data, real_y)
-        d_loss_fake = discriminator.train_on_batch(fake_data, fake_y)
-        d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
-
-        # ---------------------
-        #  Train Generator
-        # ---------------------
-        noise = np.random.normal(0, 1, (batch_size, LATENT_DIM))
-        g_loss = gan.train_on_batch(noise, np.ones((batch_size, 1)))
-
-        # Progress
         if epoch % 100 == 0:
-            print(f"Epoch: {epoch} [D loss: {d_loss[0]}, acc.: {100 * d_loss[1]:.2f}%] [G loss: {g_loss}]")
+            # Compute average discriminator loss directly using NumPy values
+            avg_d_loss = (d_loss_real + d_loss_fake) / 2
+            print(f"Epoch: {epoch} [D loss: {avg_d_loss:.4f}, G loss: {g_loss:.4f}]")
