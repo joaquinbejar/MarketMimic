@@ -4,8 +4,12 @@ from tensorflow.keras.models import Model
 from marketmimic.constants import LATENT_DIM
 
 
-def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.ndarray,
-              epochs: int = 1000, batch_size: int = 32) -> None:
+def train_gan(generator: Model,
+              discriminator: Model,
+              gan: Model,
+              dataset: np.ndarray,
+              epochs: int = 1000,
+              batch_size: int = 32) -> None:
     """
     Train a Generative Adversarial Network (GAN).
 
