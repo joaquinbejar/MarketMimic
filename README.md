@@ -76,7 +76,7 @@ This project is licensed under the MIT License - see the LICENSE.md file for det
 - Special thanks to financial market data providers for making their data available for analysis.
 
 ## Support
-For support, email fake-email@domain.com or join our Slack channel.
+For support, email **jb@taunais.com**
 
 ### Authors
 **Joaquín Béjar García** - Initial work - [joaquinbejar](https://github.com/joaquinbejar)
