@@ -1,8 +1,15 @@
 from typing import Tuple
 
+from tensorflow import reduce_mean
 from tensorflow.keras import layers, models, Model
+from tensorflow.keras.optimizers import Adam
 
-from marketmimic.constants import LATENT_DIM
+from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE
+
+
+# Using Wasserstein loss
+def wasserstein_loss(y_true, y_pred):
+    return reduce_mean(y_true * y_pred)
 
 
 def build_generator(latent_dim: int = LATENT_DIM) -> Model:
@@ -15,6 +22,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> Model:
         # Use Input to specify the input shape
         layers.Input(shape=(LATENT_DIM,)),
         layers.Dense(128),
+        layers.Dropout(0.4),
         layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
         layers.BatchNormalization(momentum=0.8),
         layers.Dense(64),
@@ -33,6 +41,7 @@ def build_discriminator() -> Model:
     model = models.Sequential([
         layers.Input(shape=(2,)),  # Two inputs for Price and Volume
         layers.Dense(64),
+        layers.Dropout(0.4),
         layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
         layers.Dense(32),
         layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
@@ -41,7 +50,10 @@ def build_discriminator() -> Model:
     return model
 
 
-def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
+def build_gan(latent_dim: int = LATENT_DIM,
+              dis_lr: float = DISCRIMINATOR_LEARNING_RATE,
+              gen_lr: float = GENERATOR_LEARNING_RATE
+              ) -> Tuple[Model, Model, Model]:
     """
     Builds and compiles both the generator and discriminator to form the GAN.
     :param latent_dim: Dimension of the latent space.
@@ -52,8 +64,12 @@ def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
     generator = build_generator(latent_dim)
     discriminator = build_discriminator()
 
+    # Optimizers with a custom learning rate
+    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=0.5)
+    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=0.5)
+
     # Compile the discriminator
-    discriminator.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    discriminator.compile(loss=wasserstein_loss, optimizer=disc_optimizer, metrics=['accuracy'])
 
     # Ensure the discriminator's weights are not updated during the GAN training
     discriminator.trainable = False
@@ -63,6 +79,6 @@ def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
     fake_data = generator(gan_input)
     gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output)
-    gan.compile(loss='binary_crossentropy', optimizer='adam')
+    gan.compile(loss=wasserstein_loss, optimizer=gen_optimizer)
 
     return generator, discriminator, gan

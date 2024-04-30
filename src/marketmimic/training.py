@@ -4,8 +4,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
 
-from marketmimic.constants import LATENT_DIM
-
+from marketmimic.constants import LATENT_DIM, SMOOTH_FACTOR
+tf.config.run_functions_eagerly(True)
 
 @tf.function
 def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
@@ -57,8 +57,13 @@ def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.nd
         idx = np.random.randint(0, dataset.shape[0], batch_size)
         real_data = dataset[idx].astype('float32')  # Ensure data is in float32
         noise = np.random.normal(0, 1, (batch_size, LATENT_DIM)).astype('float32')
-        real_y = tf.ones((batch_size, 1), dtype=tf.float32)
-        fake_y = tf.zeros((batch_size, 1), dtype=tf.float32)
+        # Adding dropout in the model
+
+        real_y = tf.ones((batch_size, 1), dtype=tf.float32) * (1 - SMOOTH_FACTOR)
+        fake_y = tf.zeros((batch_size, 1), dtype=tf.float32) + SMOOTH_FACTOR
+
+        # real_y = tf.ones((batch_size, 1), dtype=tf.float32)
+        # fake_y = tf.zeros((batch_size, 1), dtype=tf.float32)
 
         d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
 
