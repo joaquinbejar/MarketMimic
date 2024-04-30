@@ -32,7 +32,9 @@ def join_date_time(df: pd.DataFrame,
     :param time_col: Time column name
     :param datetime_col: New column name with the datetime (default: 'Datetime', optional and internal use)
     :param index_column: New column name with the index in unix epoch format (default: 'epoch', optional)
-    :return:
+    :return: The DataFrame with the new columns
+
+    example: df = join_date_time(df, 'Date', 'Time')
     '''
     try:
         df[datetime_col] = pd.to_datetime(df[date_col] + ' ' + df[time_col], format='%d/%m/%Y %H:%M:%S.%f')
