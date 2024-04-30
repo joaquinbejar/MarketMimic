@@ -14,8 +14,10 @@ requires-python = ">=3.11"
 keywords = ["common", "python", "library"]
 classifiers = ["Programming Language :: Python :: 3.11"]
 dependencies = [
-    "tensorflow~=2.16l.1",
+    "tensorflow~=2.16.1",
     "pandas~=2.2.2",
+    "jupyterlab~=4.1.8",
+    "scikit-learn~=1.4.2"
 ]
 
 [tool.setuptools.dynamic]
