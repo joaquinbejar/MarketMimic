@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools~=68.1.2", "setuptools-scm~=7.1.0", "wheel~=0.41.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "marketmimic"
+version = "0.1.0"
+dynamic = ["readme"]
+authors = [
+    { name = "©2023 TAUNAIS", email = "info@taunais.com" },
+]
+description = "Telegram pusher library"
+requires-python = ">=3.11"
+keywords = ["common", "python", "library"]
+classifiers = ["Programming Language :: Python :: 3.11"]
+dependencies = [
+    "tensorflow~=2.16l.1",
+    "pandas~=2.2.2",
+]
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.md"], content-type = "text/markdown" }
+
+[project.optional-dependencies]
+tests = [
+    "time-machine==2.12.0",
+    "coverage==7.4.0"
+]
+extended = [
+    "time-machine==2.12.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["marketmimic*"]
