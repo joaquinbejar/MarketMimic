@@ -3,7 +3,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models, Model
 from marketmimic.constants import LATENT_DIM
 
-def build_generator(latent_dim: int) -> Model:
+def build_generator(latent_dim: int = LATENT_DIM) -> Model:
     """
     Builds and returns the generator model.
     :param latent_dim: Dimension of the latent space (input noise vector).
@@ -34,7 +34,7 @@ def build_discriminator() -> Model:
     ])
     return model
 
-def build_gan(latent_dim: int) -> Tuple[Model, Model, Model]:
+def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
     """
     Builds and compiles both the generator and discriminator to form the GAN.
     :param latent_dim: Dimension of the latent space.
@@ -42,7 +42,7 @@ def build_gan(latent_dim: int) -> Tuple[Model, Model, Model]:
     :example: generator, discriminator, gan = build_gan(LATENT_DIM)
     """
     # Create and compile the generator and discriminator
-    generator = build_generator(LATENT_DIM)
+    generator = build_generator(latent_dim)
     discriminator = build_discriminator()
 
     # Compile the discriminator
@@ -52,7 +52,7 @@ def build_gan(latent_dim: int) -> Tuple[Model, Model, Model]:
     discriminator.trainable = False
 
     # Create and compile the GAN
-    gan_input = layers.Input(shape=(LATENT_DIM,))
+    gan_input = layers.Input(shape=(latent_dim,))
     fake_data = generator(gan_input)
     gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output)
