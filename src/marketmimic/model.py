@@ -1,7 +1,9 @@
 from typing import Tuple
-import tensorflow as tf
+
 from tensorflow.keras import layers, models, Model
+
 from marketmimic.constants import LATENT_DIM
+
 
 def build_generator(latent_dim: int = LATENT_DIM) -> Model:
     """
@@ -10,15 +12,18 @@ def build_generator(latent_dim: int = LATENT_DIM) -> Model:
     :return: A TensorFlow Keras model representing the generator.
     """
     model = models.Sequential([
-        layers.Dense(128, input_dim=latent_dim),
-        layers.LeakyReLU(alpha=0.2),
+        # Use Input to specify the input shape
+        layers.Input(shape=(LATENT_DIM,)),
+        layers.Dense(128),
+        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
         layers.BatchNormalization(momentum=0.8),
         layers.Dense(64),
-        layers.LeakyReLU(alpha=0.2),
+        layers.LeakyReLU(negative_slope=0.2),
         layers.BatchNormalization(momentum=0.8),
         layers.Dense(2, activation='linear')  # Two outputs for Price and Volume
     ])
     return model
+
 
 def build_discriminator() -> Model:
     """
@@ -26,13 +31,15 @@ def build_discriminator() -> Model:
     :return: A TensorFlow Keras model representing the discriminator.
     """
     model = models.Sequential([
-        layers.Dense(64, input_dim=2),
-        layers.LeakyReLU(alpha=0.2),
+        layers.Input(shape=(2,)),  # Two inputs for Price and Volume
+        layers.Dense(64),
+        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
         layers.Dense(32),
-        layers.LeakyReLU(alpha=0.2),
+        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
         layers.Dense(1, activation='sigmoid')
     ])
     return model
+
 
 def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
     """
@@ -59,5 +66,3 @@ def build_gan(latent_dim: int = LATENT_DIM) -> Tuple[Model, Model, Model]:
     gan.compile(loss='binary_crossentropy', optimizer='adam')
 
     return generator, discriminator, gan
-
-
