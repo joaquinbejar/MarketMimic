@@ -66,7 +66,7 @@ We use [SemVer](http://semver.org/) for versioning. This approach allows us to m
 - `MINOR` versions add functionality in a backwards-compatible manner, and
 - `PATCH` versions include backwards-compatible bug fixes.
 
-This standard helps users and developers to understand the impact of new updates at a glance. For the versions available, see the [tags on this repository](https://github.com/joaquinbejar/IronFix/tags).
+This standard helps users and developers to understand the impact of new updates at a glance. For the versions available, see the [tags on this repository](https://github.com/joaquinbejar/MarketMimic/tags).
 
 ### License
 This project is licensed under the MIT License - see the LICENSE.md file for details.
