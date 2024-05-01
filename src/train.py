@@ -1,8 +1,8 @@
-from marketmimic.utils import load_data, join_date_time
-from marketmimic.model import build_gan, generate_data
-from marketmimic.data import prepare_data, inverse_scale_data
-from marketmimic.training import train_gan
 from marketmimic.constants import LATENT_DIM
+from marketmimic.data import prepare_data, inverse_scale_data
+from marketmimic.model import build_gan, generate_data
+from marketmimic.training import train_gan
+from marketmimic.utils import load_data, join_date_time
 
 if __name__ == '__main__':
     zip_file = '../data/AAPL-Tick-Standard.txt.zip'
@@ -13,7 +13,7 @@ if __name__ == '__main__':
     df = join_date_time(df, 'Date', 'Time')
 
     # Prepare data
-    data_scaled, scaler = prepare_data(df)
+    data_scaled, scalers = prepare_data(df)
 
     # Build GAN
     generator, discriminator, gan = build_gan()
@@ -21,11 +21,11 @@ if __name__ == '__main__':
     # Train GAN
     train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=64)
 
-    new_data = generate_data(generator, LATENT_DIM, 100)
+    new_data = generate_data(generator, 1000, LATENT_DIM)
     print("Generated Data Samples:")
     print(new_data)
 
     # Inverse scale the generated data
-    original_data = inverse_scale_data(new_data, scaler)
+    original_data = inverse_scale_data(new_data, scalers)
     print("Generated Data Samples (Original Scale):")
     print(original_data)

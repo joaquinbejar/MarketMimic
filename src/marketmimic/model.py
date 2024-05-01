@@ -13,23 +13,42 @@ def wasserstein_loss(y_true, y_pred):
     return reduce_mean(y_true * y_pred)
 
 
-def build_generator(latent_dim: int = LATENT_DIM) -> Model:
+# def build_generator(latent_dim: int = LATENT_DIM) -> Model:
+#     """
+#     Builds and returns the generator model.
+#     :param latent_dim: Dimension of the latent space (input noise vector).
+#     :return: A TensorFlow Keras model representing the generator.
+#     """
+#     model = models.Sequential([
+#         # Use Input to specify the input shape
+#         layers.Input(shape=(latent_dim,)),
+#         layers.Dense(128),
+#         layers.Dropout(0.4),
+#         layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
+#         layers.BatchNormalization(momentum=0.8),
+#         layers.Dense(64),
+#         layers.LeakyReLU(negative_slope=0.2),
+#         layers.BatchNormalization(momentum=0.8),
+#         layers.Dense(2, activation='relu'),  # Two outputs for Price and Volume
+#     ])
+#     return model
+
+def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
-    Builds and returns the generator model.
-    :param latent_dim: Dimension of the latent space (input noise vector).
-    :return: A TensorFlow Keras model representing the generator.
+    Builds and returns the generator model with LSTM layers.
+    Args:
+        latent_dim: Dimension of the latent space (input noise vector).
+    Returns:
+        A TensorFlow Keras model representing the generator with LSTM architecture.
     """
     model = models.Sequential([
-        # Use Input to specify the input shape
-        layers.Input(shape=(LATENT_DIM,)),
-        layers.Dense(128),
-        layers.Dropout(0.4),
-        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
-        layers.BatchNormalization(momentum=0.8),
+        layers.Input(shape=(None, latent_dim)),  # None indicates variable sequence length
+        layers.LSTM(128, return_sequences=True),  # Maintaining sequence for next LSTM layer
+        layers.LSTM(64, return_sequences=False),  # No need to return sequences
         layers.Dense(64),
         layers.LeakyReLU(negative_slope=0.2),
         layers.BatchNormalization(momentum=0.8),
-        layers.Dense(2, activation='linear')  # Two outputs for Price and Volume
+        layers.Dense(2, activation='relu')  # Output layer for Price and Volume
     ])
     return model
 
