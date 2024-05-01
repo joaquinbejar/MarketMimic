@@ -9,7 +9,7 @@ dynamic = ["readme"]
 authors = [
     { name = "©2023 TAUNAIS", email = "info@taunais.com" },
 ]
-description = "Telegram pusher library"
+description = "Maker Mimic is a Python library for generating synthetic financial data."
 requires-python = ">=3.11"
 keywords = ["common", "python", "library"]
 classifiers = ["Programming Language :: Python :: 3.11"]
