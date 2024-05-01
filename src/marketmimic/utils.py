@@ -5,7 +5,7 @@ from typing import Dict, List
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
-
+import warnings
 
 def load_data(zip_file: str, txt_file: str) -> pd.DataFrame:
     '''
@@ -148,33 +148,39 @@ class RandomDataGenerator:
 def convert_to_ohlcv(df_ticks: pd.DataFrame, resample: str = 'S') -> pd.DataFrame:
     """
     Converts a DataFrame with tick data (Price, Volume) indexed by epoch timestamps (milliseconds)
-    into an OHLCV DataFrame aggregated by second, where missing 'open', 'high', and 'low' values
-    are filled using the 'close' value of the same timestamp.
+    into an OHLCV DataFrame aggregated by the specified frequency, where missing 'open', 'high', 'low' values
+    are filled using the 'close' value of the same timestamp and rows with zero volume are removed.
 
     Args:
         df_ticks (pd.DataFrame): DataFrame containing tick data with 'Price' and 'Volume', indexed by 'epoch'.
-        resample (str): Resampling frequency for the data aggregation (default: 'S' for seconds) other values
-        can be 'T' for minutes, '5T' for 5 minutes, 'H' for hours, 'D' for days, etc.
+        resample (str): Resampling frequency for the data aggregation, e.g., 'S' for seconds, 'T' for minutes,
+                        '5T' for five minutes, 'H' for hours, 'D' for days, etc.
 
     Returns:
-        pd.DataFrame: DataFrame with OHLCV data aggregated by second, with missing OHLC values filled from 'close'.
+        pd.DataFrame: DataFrame with OHLCV data aggregated by the specified frequency, with missing OHLC values
+                      filled from 'close' and zero volume rows removed.
     """
     # Convert the index to a datetime format
     df_ticks.index = pd.to_datetime(df_ticks.index, unit='ms')
 
-    # Resample data by second and apply OHLCV aggregation
-    ohlcv = df_ticks['Price'].resample(resample).ohlc()
-    ohlcv['volume'] = df_ticks['Volume'].resample(resample).sum()
+    # Resample data by the specified frequency and apply OHLCV aggregation
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', FutureWarning)
+        ohlcv = df_ticks['Price'].resample(resample).ohlc()
+        ohlcv['volume'] = df_ticks['Volume'].resample(resample).sum()
 
-    # Forward fill the 'close' values to handle NaNs
-    ohlcv['close'].ffill(inplace=True)
+        # Forward fill the 'close' values to handle NaNs
+        ohlcv['close'].ffill(inplace=True)
 
     # Fill 'open', 'high', 'low' NaNs with the corresponding 'close' value
-    # Creating a dictionary to fill NaN values based on 'close'
     fill_values = {'open': ohlcv['close'], 'high': ohlcv['close'], 'low': ohlcv['close']}
     ohlcv.fillna(value=fill_values, inplace=True)
 
+    # Remove rows where volume is zero
+    ohlcv = ohlcv[ohlcv['volume'] != 0]
+
     return ohlcv
+
 
 
 def plot_ohlcv(df_ohlcv: pd.DataFrame):
