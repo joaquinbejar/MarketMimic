@@ -3,6 +3,7 @@ import zipfile
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+import mplfinance as mpf
 import pandas as pd
 
 
@@ -163,7 +164,7 @@ def convert_to_ohlcv(df_ticks: pd.DataFrame, resample: str = 'S') -> pd.DataFram
 
     # Resample data by second and apply OHLCV aggregation
     ohlcv = df_ticks['Price'].resample(resample).ohlc()
-    ohlcv['Volume'] = df_ticks['Volume'].resample(resample).sum()
+    ohlcv['volume'] = df_ticks['Volume'].resample(resample).sum()
 
     # Forward fill the 'close' values to handle NaNs
     ohlcv['close'].ffill(inplace=True)
@@ -174,3 +175,31 @@ def convert_to_ohlcv(df_ticks: pd.DataFrame, resample: str = 'S') -> pd.DataFram
     ohlcv.fillna(value=fill_values, inplace=True)
 
     return ohlcv
+
+
+def plot_ohlcv(df_ohlcv: pd.DataFrame):
+    """
+    Plots an OHLCV DataFrame using candlestick charts for the OHLC data and a line plot for volume,
+    adjusting y-axis scale for better visibility of low volume data.
+
+    Args:
+        df_ohlcv (pd.DataFrame): DataFrame containing OHLCV data with 'open', 'high', 'low', 'close', and 'Volume'.
+    """
+    # Ensure that the index is a datetime type, this is required by mplfinance
+    if not isinstance(df_ohlcv.index, pd.DatetimeIndex):
+        df_ohlcv.index = pd.to_datetime(df_ohlcv.index)
+
+    # Creating a plot with both price and volume with adjusted y-axis scale
+    mpf.plot(df_ohlcv, type='candle', style='charles',
+             warn_too_much_data=len(df_ohlcv),
+             title='OHLCV Data',
+             ylabel='Price',
+             ylabel_lower='Volume',
+             volume=True,
+             figsize=(24, 13),
+             show_nontrading=False,
+             volume_panel=1, volume_alpha=0.5,
+             yscale='log')  # you might try 'log' for logarithmic scale if 'linear' does not suffice
+
+    # Show the plot
+    mpf.show()

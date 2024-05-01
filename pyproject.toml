@@ -18,7 +18,8 @@ dependencies = [
     "pandas~=2.2.2",
     "jupyterlab~=4.1.8",
     "scikit-learn~=1.4.2",
-    "matplotlib~=3.8.4"
+    "matplotlib~=3.8.4",
+    "mplfinance~=0.12.10b0"
 ]
 
 [tool.setuptools.dynamic]
