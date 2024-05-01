@@ -1,5 +1,6 @@
 from typing import Tuple
 
+import numpy as np
 from tensorflow import reduce_mean
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
@@ -82,3 +83,38 @@ def build_gan(latent_dim: int = LATENT_DIM,
     gan.compile(loss=wasserstein_loss, optimizer=gen_optimizer)
 
     return generator, discriminator, gan
+
+
+def generate_noise(batch_size: int, latent_dim: int = LATENT_DIM) -> np.ndarray:
+    """
+    Generates a Gaussian noise vector with the specified batch size and latent dimension.
+
+    Args:
+        batch_size (int): Number of noise samples to generate.
+        latent_dim (int): Dimension of the latent space.
+
+    Returns:
+        np.ndarray: Random noise vectors.
+    """
+    return np.random.normal(0, 1, size=(batch_size, latent_dim))
+
+
+def generate_data(generator: Model, num_samples: int, latent_dim: int = LATENT_DIM) -> np.ndarray:
+    """
+    Generates new data using the trained generator model of a GAN.
+
+    Args:
+        generator (keras.Model): The trained generator model of the GAN.
+        latent_dim (int): Dimension of the latent space used during GAN training.
+        num_samples (int): Number of samples to generate.
+
+    Returns:
+        np.ndarray: Generated data samples.
+    """
+    # Generate random noise
+    noise = generate_noise(num_samples, latent_dim)
+
+    # Generate data from noise
+    generated_data = generator.predict(noise)
+
+    return generated_data
