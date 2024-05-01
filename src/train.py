@@ -18,5 +18,5 @@ if __name__ == '__main__':
     generator, discriminator, gan = build_gan()
 
     # Train GAN
-    train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=32)
+    train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=64)
 
