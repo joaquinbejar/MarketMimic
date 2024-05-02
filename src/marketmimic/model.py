@@ -1,8 +1,6 @@
 from typing import Tuple
 
 import numpy as np
-# Using Wasserstein loss
-
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
@@ -10,6 +8,11 @@ from tensorflow.keras.optimizers.schedules import ExponentialDecay
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
     BETA_1, BETA_2
 from marketmimic.loss import *
+from marketmimic.metric import *
+
+
+# Using Wasserstein loss
+
 
 def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
@@ -21,9 +24,9 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
     model = models.Sequential([
         layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(128, return_sequences=True),
-        layers.LSTM(128, return_sequences=True),
-        layers.Dense(128),
+        layers.LSTM(1024, return_sequences=True),
+        layers.LSTM(1024, return_sequences=True),
+        layers.Dense(1024),
         layers.Dropout(0.5),
         layers.LeakyReLU(negative_slope=0.2),
         layers.Dense(64),
@@ -44,9 +47,9 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     """
     model = models.Sequential([
         layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(128, return_sequences=True),  # LSTM process sequences, keeping the time dimension
+        layers.LSTM(1024, return_sequences=True),  # LSTM process sequences, keeping the time dimension
         layers.Dropout(0.5),
-        layers.LSTM(128, return_sequences=True),
+        layers.LSTM(1024, return_sequences=True),
         layers.Dropout(0.5),
         layers.LSTM(32),  # LSTM process sequences
         layers.Dense(32, activation='leaky_relu'),
@@ -58,11 +61,14 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
 
 def build_gan(latent_dim: int = LATENT_DIM,
               dis_lr: float = DISCRIMINATOR_LEARNING_RATE,
-              gen_lr: float = GENERATOR_LEARNING_RATE
+              gen_lr: float = GENERATOR_LEARNING_RATE,
+              loss_func: callable = least_squares_loss,
+              metrics: callable = dtw_distance,
               ) -> Tuple[Model, Model, Model]:
     """
     Builds and compiles both the generator and discriminator to form the GAN.
-    :param epochs:
+    :param metrics: function to measure the distance between the distribution of generated data and real data.
+    :param loss_func: function to measure the performance of a classification model.
     :param gen_lr: generator learning rate (default: constant GENERATOR_LEARNING_RATE)
     :param dis_lr: discriminator learning rate (default: constant DISCRIMINATOR_LEARNING_RATE)
     :param latent_dim: Dimension of the latent space.
@@ -85,7 +91,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
 
     # Compile the discriminator
-    discriminator.compile(loss=binary_cross_entropy_loss, optimizer=disc_optimizer, metrics=['accuracy'])
+    discriminator.compile(loss=loss_func, optimizer=disc_optimizer, metrics=[metrics])
 
     # Ensure the discriminator's weights are not updated during the GAN training
     discriminator.trainable = False
@@ -95,7 +101,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     fake_data = generator(gan_input)
     gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output, name="GAN")
-    gan.compile(loss=wasserstein_loss, optimizer=gen_optimizer)
+    gan.compile(loss=loss_func, optimizer=gen_optimizer)
 
     return generator, discriminator, gan
 

@@ -13,7 +13,7 @@ tf.config.run_functions_eagerly(True)
 
 @tf.function
 def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
-               real_y: tf.Tensor, fake_y: tf.Tensor) -> Tuple[float, float, float]:
+               real_y: tf.Tensor, fake_y: tf.Tensor) -> Tuple[float, float, float, float, float]:
     """
     Performs a single training step for both the generator and discriminator.
 
@@ -42,7 +42,7 @@ def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np
         # Train the generator
         gan_output = gan.train_on_batch(noise, real_y)
         g_loss = gan_output[0]  # Assuming the first element is the loss
-        return d_loss_real, d_loss_fake, g_loss
+        return d_loss_real, d_loss_fake, g_loss, accuracy_real, accuracy_fake
 
 
 def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.ndarray, epochs: int,
@@ -72,9 +72,11 @@ def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.nd
         real_y = tf.ones((batch_size, 1), dtype=tf.float32) * (1 - SMOOTH_FACTOR)
         fake_y = tf.zeros((batch_size, 1), dtype=tf.float32) + SMOOTH_FACTOR
 
-        d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
+        d_loss_real, d_loss_fake, g_loss, a_real, a_fake = train_step(generator, discriminator, gan, real_data, noise,
+                                                                      real_y, fake_y)
 
         if epoch % SHOW_LOSS_EVERY == 0:
             # Compute average discriminator loss directly using NumPy values
             avg_d_loss = (d_loss_real + d_loss_fake) / 2
-            print(f"Epoch: {epoch} [D loss: {avg_d_loss:.4f}, G loss: {g_loss:.4f}]")
+            print(
+                f"Epoch: {epoch} [D loss: {avg_d_loss:.4f}, G loss: {g_loss:.4f}] [A real: {a_real:.4f}, A fake: {a_fake:.4f}]")
