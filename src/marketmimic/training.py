@@ -3,9 +3,10 @@ from typing import Tuple
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
-
-from marketmimic.constants import LATENT_DIM, SMOOTH_FACTOR
+from marketmimic.data import create_sliding_windows
+from marketmimic.constants import LATENT_DIM, SMOOTH_FACTOR, SEQUENCE_LENGTH
 tf.config.run_functions_eagerly(True)
+import warnings
 
 @tf.function
 def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
@@ -25,16 +26,19 @@ def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np
     Returns:
         Tuple[float, float, float]: The discriminator loss on real data, discriminator loss on fake data, and generator loss.
     """
-    # Train discriminator with real data
-    d_loss_real, accuracy_real = discriminator.train_on_batch(real_data, real_y)
-    # Generate fake data
-    fake_data = generator(noise, training=True)
-    # Train discriminator with fake data
-    d_loss_fake, accuracy_fake = discriminator.train_on_batch(fake_data, fake_y)
-    # Train the generator
-    gan_output = gan.train_on_batch(noise, real_y)
-    g_loss = gan_output[0]  # Assuming the first element is the loss
-    return d_loss_real, d_loss_fake, g_loss
+    with warnings.catch_warnings():
+        # ignore UserWarning
+        warnings.simplefilter('ignore', UserWarning)
+        # Train discriminator with real data
+        d_loss_real, accuracy_real = discriminator.train_on_batch(real_data, real_y)
+        # Generate fake data
+        fake_data = generator(noise, training=True)
+        # Train discriminator with fake data
+        d_loss_fake, accuracy_fake = discriminator.train_on_batch(fake_data, fake_y)
+        # Train the generator
+        gan_output = gan.train_on_batch(noise, real_y)
+        g_loss = gan_output[0]  # Assuming the first element is the loss
+        return d_loss_real, d_loss_fake, g_loss
 
 
 def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.ndarray, epochs: int,
@@ -53,17 +57,21 @@ def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.nd
     Returns:
         None: This function does not return any values but will print the training progress.
     """
+    sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
+
     for epoch in range(epochs):
-        idx = np.random.randint(0, dataset.shape[0], batch_size)
-        real_data = dataset[idx].astype('float32')  # Ensure data is in float32
-        noise = np.random.normal(0, 1, (batch_size, LATENT_DIM)).astype('float32')
-        # Adding dropout in the model
+        idx = np.random.randint(0, sequence_data.shape[0], batch_size)
+        real_data = sequence_data[idx].astype('float32')  # Datos reales son ahora secuencias
+
+        noise = np.random.normal(0, 1, size=(batch_size, SEQUENCE_LENGTH, 2)).astype('float32')
 
         real_y = tf.ones((batch_size, 1), dtype=tf.float32) * (1 - SMOOTH_FACTOR)
         fake_y = tf.zeros((batch_size, 1), dtype=tf.float32) + SMOOTH_FACTOR
 
-        # real_y = tf.ones((batch_size, 1), dtype=tf.float32)
-        # fake_y = tf.zeros((batch_size, 1), dtype=tf.float32)
+        # print("Noise shape:", noise.shape)
+        # print("Generator real_y output shape:", real_y.shape)
+        # print("Generator fake_y output shape:", fake_y.shape)
+        # print("Real data shape:", real_data.shape)
 
         d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
 

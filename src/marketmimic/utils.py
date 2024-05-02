@@ -1,11 +1,12 @@
 import random
+import warnings
 import zipfile
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 import pandas as pd
-import warnings
+
 
 def load_data(zip_file: str, txt_file: str) -> pd.DataFrame:
     '''
@@ -180,7 +181,6 @@ def convert_to_ohlcv(df_ticks: pd.DataFrame, resample: str = 'S') -> pd.DataFram
     ohlcv = ohlcv[ohlcv['volume'] != 0]
 
     return ohlcv
-
 
 
 def plot_ohlcv(df_ohlcv: pd.DataFrame):

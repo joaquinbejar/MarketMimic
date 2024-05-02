@@ -5,33 +5,13 @@ from tensorflow import reduce_mean
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
 
-from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE
+from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH
 
 
 # Using Wasserstein loss
 def wasserstein_loss(y_true, y_pred):
     return reduce_mean(y_true * y_pred)
 
-
-# def build_generator(latent_dim: int = LATENT_DIM) -> Model:
-#     """
-#     Builds and returns the generator model.
-#     :param latent_dim: Dimension of the latent space (input noise vector).
-#     :return: A TensorFlow Keras model representing the generator.
-#     """
-#     model = models.Sequential([
-#         # Use Input to specify the input shape
-#         layers.Input(shape=(latent_dim,)),
-#         layers.Dense(128),
-#         layers.Dropout(0.4),
-#         layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
-#         layers.BatchNormalization(momentum=0.8),
-#         layers.Dense(64),
-#         layers.LeakyReLU(negative_slope=0.2),
-#         layers.BatchNormalization(momentum=0.8),
-#         layers.Dense(2, activation='relu'),  # Two outputs for Price and Volume
-#     ])
-#     return model
 
 def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
@@ -42,30 +22,29 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
         A TensorFlow Keras model representing the generator with LSTM architecture.
     """
     model = models.Sequential([
-        layers.Input(shape=(None, latent_dim)),  # None indicates variable sequence length
-        layers.LSTM(128, return_sequences=True),  # Maintaining sequence for next LSTM layer
-        layers.LSTM(64, return_sequences=False),  # No need to return sequences
+        layers.Input(shape=(None, latent_dim)),  # Input shape is (None, 2) for sequences of (price, volume)
+        layers.LSTM(128, return_sequences=True),
+        layers.LSTM(64, return_sequences=True),
         layers.Dense(64),
         layers.LeakyReLU(negative_slope=0.2),
         layers.BatchNormalization(momentum=0.8),
-        layers.Dense(2, activation='relu')  # Output layer for Price and Volume
+        layers.Dense(latent_dim, activation='relu'),
+        layers.Reshape((SEQUENCE_LENGTH, latent_dim))
     ])
     return model
 
 
-def build_discriminator() -> Model:
+def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     """
     Builds and returns the discriminator model.
     :return: A TensorFlow Keras model representing the discriminator.
     """
     model = models.Sequential([
-        layers.Input(shape=(2,)),  # Two inputs for Price and Volume
-        layers.Dense(64),
-        layers.Dropout(0.4),
-        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
-        layers.Dense(32),
-        layers.LeakyReLU(negative_slope=0.2),  # Use negative_slope instead of alpha
-        layers.Dense(1, activation='sigmoid')
+        layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
+        layers.LSTM(64, return_sequences=True),  # LSTM que procesa secuencias, manteniendo la dimensión temporal
+        layers.LSTM(32),  # LSTM que reduce la secuencia a una representación vectorial
+        layers.Dense(32, activation='leaky_relu'),
+        layers.Dense(1, activation='sigmoid')  # Salida binaria para clasificación real/falso
     ])
     return model
 
@@ -95,7 +74,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     discriminator.trainable = False
 
     # Create and compile the GAN
-    gan_input = layers.Input(shape=(latent_dim,))
+    gan_input = layers.Input(shape=(None, latent_dim))
     fake_data = generator(gan_input)
     gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output)
@@ -115,7 +94,7 @@ def generate_noise(batch_size: int, latent_dim: int = LATENT_DIM) -> np.ndarray:
     Returns:
         np.ndarray: Random noise vectors.
     """
-    return np.random.normal(0, 1, size=(batch_size, latent_dim))
+    return np.random.normal(0, 1, size=(batch_size, SEQUENCE_LENGTH, latent_dim)).astype('float32')
 
 
 def generate_data(generator: Model, num_samples: int, latent_dim: int = LATENT_DIM) -> np.ndarray:
@@ -136,4 +115,4 @@ def generate_data(generator: Model, num_samples: int, latent_dim: int = LATENT_D
     # Generate data from noise
     generated_data = generator.predict(noise)
 
-    return generated_data
+    return generated_data  # Shape (num_samples, SEQUENCE_LENGTH, latent_dim)
