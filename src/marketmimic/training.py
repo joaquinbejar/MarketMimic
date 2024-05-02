@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
 
-from marketmimic.constants import SMOOTH_FACTOR, SEQUENCE_LENGTH
+from marketmimic.constants import SMOOTH_FACTOR, SEQUENCE_LENGTH, SHOW_LOSS_EVERY
 from marketmimic.data import create_sliding_windows
 
 tf.config.run_functions_eagerly(True)
@@ -74,7 +74,7 @@ def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.nd
 
         d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
 
-        if epoch % 100 == 0:
+        if epoch % SHOW_LOSS_EVERY == 0:
             # Compute average discriminator loss directly using NumPy values
             avg_d_loss = (d_loss_real + d_loss_fake) / 2
             print(f"Epoch: {epoch} [D loss: {avg_d_loss:.4f}, G loss: {g_loss:.4f}]")

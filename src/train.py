@@ -24,7 +24,7 @@ if __name__ == '__main__':
     gan.summary()
 
     # Train GAN
-    train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=32)
+    train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=4)
 
     new_data = generate_data(generator, 100, LATENT_DIM)
 

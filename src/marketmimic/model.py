@@ -40,13 +40,15 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
     model = models.Sequential([
         layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(256, return_sequences=True),
+        layers.LSTM(128, return_sequences=True),
         layers.LSTM(128, return_sequences=True),
         layers.Dense(128),
+        layers.Dropout(0.5),
         layers.LeakyReLU(negative_slope=0.2),
-        layers.Dense(1024),
-        layers.LSTM(512, return_sequences=True),
-        layers.Dense(1024),
+        layers.Dense(64),
+        layers.LSTM(64, return_sequences=True),
+        layers.Dense(64),
+        layers.Dropout(0.5),
         layers.BatchNormalization(momentum=0.8),
         layers.Dense(latent_dim, activation='relu'),
         layers.Reshape((SEQUENCE_LENGTH, latent_dim))
@@ -61,10 +63,13 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     """
     model = models.Sequential([
         layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(1024, return_sequences=True),  # LSTM process sequences, keeping the time dimension
-        layers.Dropout(0.3),
+        layers.LSTM(128, return_sequences=True),  # LSTM process sequences, keeping the time dimension
+        layers.Dropout(0.5),
+        layers.LSTM(128, return_sequences=True),
+        layers.Dropout(0.5),
         layers.LSTM(32),  # LSTM process sequences
         layers.Dense(32, activation='leaky_relu'),
+        layers.Dense(32),
         layers.Dense(1, activation='sigmoid')  # Sigmoid activation for binary classification
     ], name="Discriminator")
     return model

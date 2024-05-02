@@ -6,3 +6,4 @@ BETA_2 = 0.9  # Default value for beta_2 a lower beta_2 improves stability
 SMOOTH_FACTOR = 0.1  # Factor to smooth the labels for the discriminator
 SEQUENCE_LENGTH = 100
 DEFAULT_COLUMNS = ['Price', 'Volume']
+SHOW_LOSS_EVERY = 10
