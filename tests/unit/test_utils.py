@@ -22,9 +22,9 @@ class TestLoadData(unittest.TestCase):
             comparison_df.to_csv('test_data.txt', index=False)
 
             # Create a new ZipFile object in write mode
-            with zipfile.ZipFile('test_data.zip', 'w') as zip:
+            with zipfile.ZipFile('test_data.zip', 'w') as zipf:
                 # Add txt file to zip
-                zip.write('test_data.txt')
+                zipf.write('test_data.txt')
 
             # Load data from load_data function
             result_df = utils.load_data('test_data.zip', 'test_data.txt')

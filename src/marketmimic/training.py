@@ -1,12 +1,15 @@
+import warnings
 from typing import Tuple
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
+
+from marketmimic.constants import SMOOTH_FACTOR, SEQUENCE_LENGTH
 from marketmimic.data import create_sliding_windows
-from marketmimic.constants import LATENT_DIM, SMOOTH_FACTOR, SEQUENCE_LENGTH
+
 tf.config.run_functions_eagerly(True)
-import warnings
+
 
 @tf.function
 def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
@@ -24,7 +27,8 @@ def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np
         fake_y (tf.Tensor): Labels for fake data (typically zeros).
 
     Returns:
-        Tuple[float, float, float]: The discriminator loss on real data, discriminator loss on fake data, and generator loss.
+        Tuple[float, float, float]: The discriminator loss on real data, discriminator loss on fake data, and
+        generator loss.
     """
     with warnings.catch_warnings():
         # ignore UserWarning
@@ -67,11 +71,6 @@ def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.nd
 
         real_y = tf.ones((batch_size, 1), dtype=tf.float32) * (1 - SMOOTH_FACTOR)
         fake_y = tf.zeros((batch_size, 1), dtype=tf.float32) + SMOOTH_FACTOR
-
-        # print("Noise shape:", noise.shape)
-        # print("Generator real_y output shape:", real_y.shape)
-        # print("Generator fake_y output shape:", fake_y.shape)
-        # print("Real data shape:", real_data.shape)
 
         d_loss_real, d_loss_fake, g_loss = train_step(generator, discriminator, gan, real_data, noise, real_y, fake_y)
 

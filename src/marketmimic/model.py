@@ -55,6 +55,8 @@ def build_gan(latent_dim: int = LATENT_DIM,
               ) -> Tuple[Model, Model, Model]:
     """
     Builds and compiles both the generator and discriminator to form the GAN.
+    :param gen_lr: generator learning rate (default: constant GENERATOR_LEARNING_RATE)
+    :param dis_lr: discriminator learning rate (default: constant DISCRIMINATOR_LEARNING_RATE)
     :param latent_dim: Dimension of the latent space.
     :return: A tuple containing the generator, discriminator, and the GAN model.
     :example: generator, discriminator, gan = build_gan(LATENT_DIM)

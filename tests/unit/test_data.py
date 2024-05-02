@@ -57,7 +57,7 @@ class TestInverseScaleData(unittest.TestCase):
         result = inverse_scale_data(self.scaled_data, self.scalers, self.index)
         self.assertIsInstance(result, pd.DataFrame)
         self.assertListEqual(list(result.columns), ['Price', 'Volume'])
-        self.assertTrue(all(result.index == self.index))
+        self.assertTrue((result.index == self.index).all())
         self.assertEqual(len(result), len(self.price_data))
 
     def test_inverse_scale_data_failure_wrong_number_of_columns(self):
@@ -93,10 +93,10 @@ class TestFullData(unittest.TestCase):
         original_data = inverse_scale_data(data_scaled, scalers, self.df.index)
         self.assertIsInstance(original_data, pd.DataFrame)
         self.assertListEqual(list(original_data.columns), ['Price', 'Volume'])
-        self.assertTrue(all(original_data.index == self.df.index))
+        self.assertTrue((original_data.index == self.df.index).all())
         self.assertEqual(len(original_data), len(self.df))
-        self.assertTrue(all(original_data.Price.values == self.df.Price.values))
-        self.assertTrue(all(original_data.Volume.values == self.df.Volume.values))
+        self.assertTrue((original_data.Price.values == self.df.Price.values).all())
+        self.assertTrue((original_data.Volume.values == self.df.Volume.values).all())
 
 
 class TestSlidingWindows(unittest.TestCase):
@@ -151,33 +151,29 @@ class TestFullDataSlidingWindows(unittest.TestCase):
     def test_sliding_and_inverse(self):
         data_scaled = self.df.values
         self.assertIsInstance(data_scaled, np.ndarray)
-        secuence_data = create_sliding_windows(data_scaled, 3)
-        self.assertIsInstance(secuence_data, np.ndarray)
-        self.assertEqual(secuence_data.shape, (len(data_scaled) - 3 + 1, 3, 2))
-        inverse_data = invert_sliding_windows(secuence_data)
+        sequence_data = create_sliding_windows(data_scaled, 3)
+        self.assertIsInstance(sequence_data, np.ndarray)
+        self.assertEqual(sequence_data.shape, (len(data_scaled) - 3 + 1, 3, 2))
+        inverse_data = invert_sliding_windows(sequence_data)
         self.assertIsInstance(inverse_data, np.ndarray)
         self.assertEqual(inverse_data.shape, data_scaled.shape)
-        self.assertTrue(all(inverse_data.flatten() == data_scaled.flatten()))
+        self.assertTrue((inverse_data.flatten() == data_scaled.flatten()).all())
 
     def test_scaling_sliding_and_inverse(self):
         data_scaled, scalers = prepare_data(self.df)
-        print('\ndata_scaled: ', data_scaled[:5])
-        secuence_data = create_sliding_windows(data_scaled, 3)
-        print('secuence_data: ', secuence_data[:5])
-        self.assertIsInstance(secuence_data, np.ndarray)
-        self.assertEqual(secuence_data.shape, (len(data_scaled) - 3 + 1, 3, 2))
-        inverse_data = invert_sliding_windows(secuence_data)
-        print('inverse_data: ', inverse_data[:5])
+        sequence_data = create_sliding_windows(data_scaled, 3)
+        self.assertIsInstance(sequence_data, np.ndarray)
+        self.assertEqual(sequence_data.shape, (len(data_scaled) - 3 + 1, 3, 2))
+        inverse_data = invert_sliding_windows(sequence_data)
         self.assertIsInstance(inverse_data, np.ndarray)
         self.assertEqual(inverse_data.shape, data_scaled.shape)
         original_data = inverse_scale_data(inverse_data, scalers, self.df.index)
-        print('original_data: ', original_data[:5])
         self.assertIsInstance(original_data, pd.DataFrame)
         self.assertListEqual(list(original_data.columns), ['Price', 'Volume'])
-        self.assertTrue(all(original_data.index == self.df.index))
+        self.assertTrue((original_data.index == self.df.index).all())
         self.assertEqual(len(original_data), len(self.df))
-        self.assertTrue(all(original_data.Price.values == self.df.Price.values))
-        self.assertTrue(all(original_data.Volume.values == self.df.Volume.values))
+        self.assertTrue((original_data.Price.values == self.df.Price.values).all())
+        self.assertTrue((original_data.Volume.values == self.df.Volume.values).all())
 
 
 if __name__ == '__main__':

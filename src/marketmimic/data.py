@@ -1,4 +1,4 @@
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -21,7 +21,7 @@ class InverseDateException(Exception):
         super().__init__(self.message)
 
 
-def prepare_data(df: pd.DataFrame) -> Tuple[np.ndarray, Dict[str, MinMaxScaler]]:
+def prepare_data(df: Optional[pd.DataFrame]) -> Tuple[np.ndarray, Dict[str, MinMaxScaler]]:
     """
     Prepares and scales data from a DataFrame for model training, scaling each column separately.
 
@@ -133,7 +133,8 @@ def create_sliding_windows(data: np.ndarray, window_size: int) -> np.ndarray:
         window_size (int): The number of time steps in each window, also known as the size of the window.
 
     Returns:
-        np.ndarray: An array of sliding windows, each window containing 'window_size' consecutive time steps from the data.
+        np.ndarray: An array of sliding windows, each window containing 'window_size' consecutive time steps from
+        the data.
     """
     num_samples = data.shape[0] - window_size + 1
     windows = np.array([data[i:i + window_size] for i in range(num_samples)])

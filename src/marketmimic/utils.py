@@ -9,13 +9,13 @@ import pandas as pd
 
 
 def load_data(zip_file: str, txt_file: str) -> pd.DataFrame:
-    '''
+    """
     Load data from a zip file and a txt file inside the zip file
     The file should contain market data in Tick format: Date, Time, Price, Volume
     :param zip_file: Path to the zip file
     :param txt_file: Path to the txt file inside the zip file
     :return: A pandas DataFrame with the data
-    '''
+    """
     try:
         with zipfile.ZipFile(zip_file, "r") as z:
             with z.open(txt_file) as f:
@@ -30,7 +30,7 @@ def join_date_time(df: pd.DataFrame,
                    time_col: str,
                    datetime_col: str = 'Datetime',
                    index_column: str = 'epoch') -> pd.DataFrame:
-    '''
+    """
     Join date and time columns into a single datetime column and set it as the index in unix epoch format
     :param df: DataFrame with the data from the txt file
     :param date_col: Date column name
@@ -40,7 +40,7 @@ def join_date_time(df: pd.DataFrame,
     :return: The DataFrame with the new columns
 
     example: df = join_date_time(df, 'Date', 'Time')
-    '''
+    """
     try:
         df[datetime_col] = pd.to_datetime(df[date_col] + ' ' + df[time_col], format='%d/%m/%Y %H:%M:%S.%f')
     except ValueError:
