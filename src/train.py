@@ -1,3 +1,5 @@
+from tabulate import tabulate
+
 from marketmimic.constants import LATENT_DIM
 from marketmimic.data import prepare_data, inverse_scale_data, invert_sliding_windows
 from marketmimic.model import build_gan, generate_data
@@ -25,9 +27,11 @@ if __name__ == '__main__':
     train_gan(generator, discriminator, gan, data_scaled, epochs=10, batch_size=32)
 
     new_data = generate_data(generator, 1000, LATENT_DIM)
-    print("Generated Data Samples:")
 
     # Inverse scale the generated data
     inverse_data = invert_sliding_windows(new_data)
     original_data = inverse_scale_data(inverse_data, scalers)
-    print("Generated Data Samples (Original Scale):")
+
+    print(tabulate(original_data, headers='keys', tablefmt='psql'))
+
+    # print(original_data)
