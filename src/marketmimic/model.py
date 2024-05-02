@@ -2,33 +2,14 @@ from typing import Tuple
 
 import numpy as np
 # Using Wasserstein loss
-from tensorflow import reduce_mean, Tensor
+
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
     BETA_1, BETA_2
-
-
-def wasserstein_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
-    """
-    Calculates the Wasserstein loss for a batch of predicted and true values.
-
-    The Wasserstein loss function is often used in training generative adversarial networks (GANs)
-    to measure the distance between the distribution of generated data and real data. This loss
-    function helps in stabilizing the training process of GANs by providing a more meaningful
-    and smooth gradient signal.
-
-    Args:
-        y_true (Tensor): The ground truth values, usually -1 or 1 indicating real or fake samples.
-        y_pred (Tensor): The predicted values from the discriminator.
-
-    Returns:
-        Tensor: The computed Wasserstein loss as a single scalar tensor.
-    """
-    return reduce_mean(y_true * y_pred)
-
+from marketmimic.loss import *
 
 def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
@@ -104,7 +85,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
 
     # Compile the discriminator
-    discriminator.compile(loss=wasserstein_loss, optimizer=disc_optimizer, metrics=['accuracy'])
+    discriminator.compile(loss=binary_cross_entropy_loss, optimizer=disc_optimizer, metrics=['accuracy'])
 
     # Ensure the discriminator's weights are not updated during the GAN training
     discriminator.trainable = False
