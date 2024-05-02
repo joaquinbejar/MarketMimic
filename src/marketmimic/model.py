@@ -30,7 +30,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
         layers.BatchNormalization(momentum=0.8),
         layers.Dense(latent_dim, activation='relu'),
         layers.Reshape((SEQUENCE_LENGTH, latent_dim))
-    ])
+    ], name="Generator")
     return model
 
 
@@ -45,7 +45,7 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
         layers.LSTM(32),  # LSTM que reduce la secuencia a una representación vectorial
         layers.Dense(32, activation='leaky_relu'),
         layers.Dense(1, activation='sigmoid')  # Salida binaria para clasificación real/falso
-    ])
+    ], name="Discriminator")
     return model
 
 
@@ -79,7 +79,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     gan_input = layers.Input(shape=(None, latent_dim))
     fake_data = generator(gan_input)
     gan_output = discriminator(fake_data)
-    gan = models.Model(gan_input, gan_output)
+    gan = models.Model(gan_input, gan_output, name="GAN")
     gan.compile(loss=wasserstein_loss, optimizer=gen_optimizer)
 
     return generator, discriminator, gan

@@ -24,9 +24,9 @@ if __name__ == '__main__':
     gan.summary()
 
     # Train GAN
-    train_gan(generator, discriminator, gan, data_scaled, epochs=100, batch_size=64)
+    train_gan(generator, discriminator, gan, data_scaled, epochs=1000, batch_size=32)
 
-    new_data = generate_data(generator, 1000, LATENT_DIM)
+    new_data = generate_data(generator, 100, LATENT_DIM)
 
     # Inverse scale the generated data
     inverse_data = invert_sliding_windows(new_data)
