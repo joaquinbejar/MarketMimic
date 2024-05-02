@@ -39,7 +39,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
         A TensorFlow Keras model representing the generator with LSTM architecture.
     """
     model = models.Sequential([
-        layers.Input(shape=(None, latent_dim)),  # Input shape is (None, 2) for sequences of (price, volume)
+        layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
         layers.LSTM(256, return_sequences=True),
         layers.LSTM(128, return_sequences=True),
         layers.Dense(128),
