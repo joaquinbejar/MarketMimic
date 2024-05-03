@@ -41,34 +41,38 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
         A TensorFlow Keras model representing the generator with specialized branches for
         price and volume that exchange information.
     """
+    size = 2  # Factor to reduce the number of units in the layers ( dividable by 2 )
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
     price_path = SplitLayer(0, 1)(input_layer)
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Initial Common LSTM Layer
-    price_path = layers.LSTM(1024, return_sequences=True)(price_path)
-    price_path = layers.LSTM(1024, return_sequences=True)(price_path)
-    price_path = layers.Dense(1024, activation='softplus')(price_path)
+    price_path = layers.LSTM(int(size * 128), return_sequences=True)(price_path)
+    price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
+
+    # price_path = layers.LSTM(int(size * 128), return_sequences=True)(price_path)
+    price_path = layers.Dense(int(size * 128), activation='softplus')(price_path)
     price_path = layers.Dropout(0.5)(price_path)
 
     # Initial Common LSTM Layer
-    volume_path = layers.LSTM(32, return_sequences=True)(volume_path)
-    volume_path = layers.LSTM(32, return_sequences=True)(volume_path)
+    volume_path = layers.LSTM(int(size * 32), return_sequences=True)(volume_path)
+    volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
+    volume_path = layers.Dense(int(size * 32), activation='relu')(volume_path)
     volume_path = layers.Dropout(0.5)(volume_path)
-    volume_path = layers.Dense(32, activation='relu')(volume_path)
 
     # Price path
-    price_path = layers.Dense(64)(price_path)
-    price_path = layers.LSTM(64, return_sequences=True)(price_path)
+    price_path = layers.Dense(int(size * 8))(price_path)
+    # price_path = layers.LSTM(int(size * 8), return_sequences=True)(price_path)
 
     # Volume path
-    volume_path = layers.Dense(64)(volume_path)
-    volume_path = layers.LSTM(64, return_sequences=True)(volume_path)
+    volume_path = layers.Dense(int(size * 8))(volume_path)
+    # volume_path = layers.LSTM(int(size * 8), return_sequences=True)(volume_path)
 
     # Combine information from both branches and allow exchange before the final output
-    combined_path = layers.Concatenate(axis=-1)([price_path, volume_path])
-    combined_path = layers.Dense(64)(combined_path)
+    # combined_path = layers.Concatenate(axis=-1)([price_path, volume_path])
+    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=2)(price_path, volume_path)
+    combined_path = layers.Dense(int(size * 8))(combined_path)
 
     # Final output layers with different activation functions
     final_price = layers.Dense(1, activation='softplus')(combined_path)  # salida lineal para 'Price'
@@ -91,23 +95,46 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     Returns:
         A TensorFlow Keras model representing the discriminator with separate pathways.
     """
+    size = 2  # Factor to reduce the number of units in the layers  ( dividable by 2 )
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
     price_path = SplitLayer(0, 1)(input_layer)
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    price_path = layers.LSTM(256, return_sequences=True)(price_path)
-    price_path = layers.LSTM(128)(price_path)
-    price_path = layers.Dense(32, activation='softplus')(price_path)
+    price_path = layers.LSTM(int(size * 32), return_sequences=True)(price_path)
+    # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
+    # price_path = layers.LSTM(int(size * 128))(price_path)
+    price_path = layers.Dense(int(size * 4))(price_path)
+    price_path = layers.Dropout(0.5)(price_path)
+    price_path = layers.Dense(int(size * 16), activation='softplus')(price_path)
+    price_path = layers.Reshape((-1, int(size * 16)))(price_path)
+    price_path = layers.LSTM(int(size * 16), return_sequences=True)(price_path)
+    # price_path = layers.LSTM(int(size * 32), return_sequences=False)(price_path)
+    price_path = layers.Dense(int(size * 16))(price_path)
 
     # Volume path
-    volume_path = layers.LSTM(256, return_sequences=True)(volume_path)
-    volume_path = layers.LSTM(128)(volume_path)
-    volume_path = layers.Dense(32, activation='relu')(volume_path)
+    volume_path = layers.LSTM(int(size * 32), return_sequences=True)(volume_path)
+    # volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
+    # volume_path = layers.LSTM(int(size * 128))(volume_path)
+    volume_path = layers.Dense(int(size * 4))(volume_path)
+    volume_path = layers.Dropout(0.5)(volume_path)
+    volume_path = layers.Dense(int(size * 16), activation='relu')(volume_path)
+    volume_path = layers.Reshape((-1, int(size * 16)))(volume_path)
+    volume_path = layers.LSTM(int(size * 16), return_sequences=True)(volume_path)
+    # volume_path = layers.LSTM(int(size * 32), return_sequences=False)(volume_path)
+    volume_path = layers.Dense(int(size * 16))(volume_path)
 
     # Combine the outputs of both branches
-    combined_path = layers.Concatenate()([price_path, volume_path])
+    # combined_path = layers.Concatenate()([price_path, volume_path])
+
+    # MultiHeadAttention
+    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=int(size * 16))(price_path, volume_path)
+
+    # Asegurarse que sigue habiendo una dimensión temporal
+    combined_path = layers.TimeDistributed(layers.Dense(int(size * 16)))(combined_path)
+    combined_path = layers.GlobalAveragePooling1D()(combined_path)
+
     final_output = layers.Dense(1, activation='sigmoid')(combined_path)
 
     model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
