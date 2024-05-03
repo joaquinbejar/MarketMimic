@@ -11,6 +11,24 @@ from marketmimic.loss import *
 from marketmimic.metric import *
 
 
+class SplitLayer(layers.Layer):
+    def __init__(self, index_start, index_end, **kwargs):
+        super(SplitLayer, self).__init__(**kwargs)
+        self.index_start = index_start
+        self.index_end = index_end
+
+    def call(self, inputs):
+        return inputs[:, :, self.index_start:self.index_end]
+
+    def get_config(self):
+        config = super(SplitLayer, self).get_config()
+        config.update({
+            "index_start": self.index_start,
+            "index_end": self.index_end
+        })
+        return config
+
+
 def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
     Builds and returns the generator model with LSTM layers, specialized for separate handling
@@ -25,33 +43,41 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
+    price_path = SplitLayer(0, 1)(input_layer)
+    volume_path = SplitLayer(1, 2)(input_layer)
+
     # Initial Common LSTM Layer
-    x = layers.LSTM(1024, return_sequences=True)(input_layer)
-    x = layers.LSTM(1024, return_sequences=True)(x)
-    x = layers.Dense(1024)(x)
-    x = layers.Dropout(0.5)(x)
+    price_path = layers.LSTM(1024, return_sequences=True)(price_path)
+    price_path = layers.LSTM(1024, return_sequences=True)(price_path)
+    price_path = layers.Dense(1024, activation='softplus')(price_path)
+    price_path = layers.Dropout(0.5)(price_path)
+
+    # Initial Common LSTM Layer
+    volume_path = layers.LSTM(32, return_sequences=True)(volume_path)
+    volume_path = layers.LSTM(32, return_sequences=True)(volume_path)
+    volume_path = layers.Dropout(0.5)(volume_path)
+    volume_path = layers.Dense(32, activation='relu')(volume_path)
 
     # Price path
-    price_path = layers.Dense(64)(x)
+    price_path = layers.Dense(64)(price_path)
     price_path = layers.LSTM(64, return_sequences=True)(price_path)
 
     # Volume path
-    volume_path = layers.Dense(64)(x)
+    volume_path = layers.Dense(64)(volume_path)
     volume_path = layers.LSTM(64, return_sequences=True)(volume_path)
 
     # Combine information from both branches and allow exchange before the final output
     combined_path = layers.Concatenate(axis=-1)([price_path, volume_path])
-    combined_path = layers.Dense(64, activation='relu')(combined_path)
+    combined_path = layers.Dense(64)(combined_path)
 
-    # Salidas finales separadas
     # Final output layers with different activation functions
     final_price = layers.Dense(1, activation='softplus')(combined_path)  # salida lineal para 'Price'
     final_volume = layers.Dense(1, activation='relu')(combined_path)  # usar relu para 'Volume'
 
     # Concatenate the outputs of both branches
-    # output = layers.Concatenate()([final_price, final_volume])
+    final_output = layers.Concatenate()([final_price, final_volume])
 
-    model = models.Model(inputs=input_layer, outputs=[final_price, final_volume], name="Generator")
+    model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
 
 
@@ -67,23 +93,22 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     """
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
-    # Initial Common LSTM Layer
-    x = layers.LSTM(512, return_sequences=True)(input_layer)
-    x = layers.Dropout(0.5)(x)
+    price_path = SplitLayer(0, 1)(input_layer)
+    volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    price_path = layers.LSTM(256, return_sequences=True)(x)
+    price_path = layers.LSTM(256, return_sequences=True)(price_path)
     price_path = layers.LSTM(128)(price_path)
-    price_path = layers.Dense(32, activation='leaky_relu')(price_path)
+    price_path = layers.Dense(32, activation='softplus')(price_path)
 
     # Volume path
-    volume_path = layers.LSTM(256, return_sequences=True)(x)
+    volume_path = layers.LSTM(256, return_sequences=True)(volume_path)
     volume_path = layers.LSTM(128)(volume_path)
-    volume_path = layers.Dense(32, activation='leaky_relu')(volume_path)
+    volume_path = layers.Dense(32, activation='relu')(volume_path)
 
     # Combine the outputs of both branches
     combined_path = layers.Concatenate()([price_path, volume_path])
-    final_output = layers.Dense(1, activation='sigmoid')(combined_path)  # Salida binaria para clasificación
+    final_output = layers.Dense(1, activation='sigmoid')(combined_path)
 
     model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
     return model
