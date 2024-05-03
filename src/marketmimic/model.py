@@ -11,51 +11,81 @@ from marketmimic.loss import *
 from marketmimic.metric import *
 
 
-# Using Wasserstein loss
-
-
 def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     """
-    Builds and returns the generator model with LSTM layers.
+    Builds and returns the generator model with LSTM layers, specialized for separate handling
+    of price and volume features, with intermediate cross-communication between the two branches.
+
     Args:
         latent_dim: Dimension of the latent space (input noise vector).
+
     Returns:
-        A TensorFlow Keras model representing the generator with LSTM architecture.
+        A TensorFlow Keras model representing the generator with specialized branches for
+        price and volume that exchange information.
     """
-    model = models.Sequential([
-        layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(1024, return_sequences=True),
-        layers.LSTM(1024, return_sequences=True),
-        layers.Dense(1024),
-        layers.Dropout(0.5),
-        layers.LeakyReLU(negative_slope=0.2),
-        layers.Dense(64),
-        layers.LSTM(64, return_sequences=True),
-        layers.Dense(64),
-        layers.Dropout(0.5),
-        layers.BatchNormalization(momentum=0.8),
-        layers.Dense(latent_dim, activation='relu'),
-        layers.Reshape((SEQUENCE_LENGTH, latent_dim))
-    ], name="Generator")
+    input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
+
+    # Initial Common LSTM Layer
+    x = layers.LSTM(1024, return_sequences=True)(input_layer)
+    x = layers.LSTM(1024, return_sequences=True)(x)
+    x = layers.Dense(1024)(x)
+    x = layers.Dropout(0.5)(x)
+
+    # Price path
+    price_path = layers.Dense(64)(x)
+    price_path = layers.LSTM(64, return_sequences=True)(price_path)
+
+    # Volume path
+    volume_path = layers.Dense(64)(x)
+    volume_path = layers.LSTM(64, return_sequences=True)(volume_path)
+
+    # Combine information from both branches and allow exchange before the final output
+    combined_path = layers.Concatenate(axis=-1)([price_path, volume_path])
+    combined_path = layers.Dense(64, activation='relu')(combined_path)
+
+    # Salidas finales separadas
+    # Final output layers with different activation functions
+    final_price = layers.Dense(1, activation='softplus')(combined_path)  # salida lineal para 'Price'
+    final_volume = layers.Dense(1, activation='relu')(combined_path)  # usar relu para 'Volume'
+
+    # Concatenate the outputs of both branches
+    # output = layers.Concatenate()([final_price, final_volume])
+
+    model = models.Model(inputs=input_layer, outputs=[final_price, final_volume], name="Generator")
     return model
 
 
 def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     """
-    Builds and returns the discriminator model.
-    :return: A TensorFlow Keras model representing the discriminator.
+    Builds and returns the discriminator model with separate pathways for price and volume.
+
+    Args:
+        latent_dim: Dimension of the latent space.
+
+    Returns:
+        A TensorFlow Keras model representing the discriminator with separate pathways.
     """
-    model = models.Sequential([
-        layers.Input(shape=(SEQUENCE_LENGTH, latent_dim)),
-        layers.LSTM(1024, return_sequences=True),  # LSTM process sequences, keeping the time dimension
-        layers.Dropout(0.5),
-        layers.LSTM(1024, return_sequences=True),
-        layers.Dropout(0.5),
-        layers.LSTM(32),  # LSTM process sequences
-        layers.Dense(32, activation='leaky_relu'),
-        layers.Dense(32),
-        layers.Dense(1, activation='sigmoid')  # Sigmoid activation for binary classification
-    ], name="Discriminator")
+    input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
+
+    # Initial Common LSTM Layer
+    x = layers.LSTM(512, return_sequences=True)(input_layer)
+    x = layers.Dropout(0.5)(x)
+
+    # Price path
+    price_path = layers.LSTM(256, return_sequences=True)(x)
+    price_path = layers.LSTM(128)(price_path)
+    price_path = layers.Dense(32, activation='leaky_relu')(price_path)
+
+    # Volume path
+    volume_path = layers.LSTM(256, return_sequences=True)(x)
+    volume_path = layers.LSTM(128)(volume_path)
+    volume_path = layers.Dense(32, activation='leaky_relu')(volume_path)
+
+    # Combine the outputs of both branches
+    combined_path = layers.Concatenate()([price_path, volume_path])
+    final_output = layers.Dense(1, activation='sigmoid')(combined_path)  # Salida binaria para clasificación
+
+    model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
     return model
 
 
@@ -99,7 +129,14 @@ def build_gan(latent_dim: int = LATENT_DIM,
     # Create and compile the GAN
     gan_input = layers.Input(shape=(None, latent_dim))
     fake_data = generator(gan_input)
-    gan_output = discriminator(fake_data)
+
+    # If the generator produces a list of outputs (price and volume), concatenate them
+    if isinstance(fake_data, list):
+        combined_output = layers.Concatenate(axis=-1)(fake_data)
+    else:
+        combined_output = fake_data
+
+    gan_output = discriminator(combined_output)
     gan = models.Model(gan_input, gan_output, name="GAN")
     gan.compile(loss=loss_func, optimizer=gen_optimizer)
 
@@ -137,5 +174,8 @@ def generate_data(generator: Model, num_samples: int, latent_dim: int = LATENT_D
 
     # Generate data from noise
     generated_data = generator.predict(noise)
+    # If the generator produces a list of outputs, concatenate them before sending to the discriminator
+    if isinstance(generated_data, list):
+        generated_data = layers.Concatenate(axis=-1)(generated_data)
 
     return generated_data  # Shape (num_samples, SEQUENCE_LENGTH, latent_dim)

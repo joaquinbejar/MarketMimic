@@ -3,6 +3,7 @@ from typing import Tuple
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 
 from marketmimic.constants import SMOOTH_FACTOR, SEQUENCE_LENGTH, SHOW_LOSS_EVERY
@@ -37,6 +38,11 @@ def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np
         d_loss_real, accuracy_real = discriminator.train_on_batch(real_data, real_y)
         # Generate fake data
         fake_data = generator(noise, training=True)
+
+        # If the generator produces a list of outputs, concatenate them before sending to the discriminator
+        if isinstance(fake_data, list):
+            fake_data = layers.Concatenate(axis=-1)(fake_data)
+
         # Train discriminator with fake data
         d_loss_fake, accuracy_fake = discriminator.train_on_batch(fake_data, fake_y)
         # Train the generator
