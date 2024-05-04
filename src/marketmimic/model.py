@@ -4,7 +4,7 @@ import numpy as np
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
-
+from tensorflow.keras.initializers import HeNormal
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
     BETA_1, BETA_2, GAN_SIZE
 from marketmimic.loss import *
@@ -47,7 +47,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     volume_path = SplitLayer(1, 2)(input_layer)
 
     join_path = layers.Concatenate()([price_path, volume_path])
-    join_path = layers.Dense(int(GAN_SIZE * 32), name='Dense_Join_1')(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), name='Dense_Join_1', kernel_initializer=HeNormal())(join_path)
     join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
     join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
     join_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation='softplus'))(join_path)
@@ -55,14 +55,14 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
 
     # Initial Common LSTM Layer
     price_path = layers.LSTM(int(GAN_SIZE * 128), return_sequences=True, activation='softplus')(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus')(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus', kernel_initializer=HeNormal())(price_path)
     # price_path = layers.Dropout(0.5)(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus')(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 8), activation='softplus')(price_path)
 
     # Initial Common LSTM Layer
     volume_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True, activation='relu')(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu')(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu', kernel_initializer=HeNormal())(volume_path)
     # volume_path = layers.Dropout(0.5)(volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu')(volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 8), activation='relu')(volume_path)
@@ -98,7 +98,7 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     price_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True)(price_path)
     # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
     # price_path = layers.LSTM(int(size * 128))(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 4))(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal())(price_path)
     price_path = layers.Dropout(0.5)(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 16), activation='softplus')(price_path)
     price_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(price_path)
@@ -209,8 +209,8 @@ def build_gan(latent_dim: int = LATENT_DIM,
     generator = build_generator(latent_dim)
     discriminator = build_discriminator()
 
-    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2)
-    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
+    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
 
     # Ensure the discriminator's weights are not updated during the GAN model usage
     discriminator.trainable = False
