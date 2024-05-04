@@ -6,7 +6,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import ExponentialDecay
 
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
-    BETA_1, BETA_2
+    BETA_1, BETA_2, GAN_SIZE
 from marketmimic.loss import *
 from marketmimic.metric import *
 
@@ -41,45 +41,39 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
         A TensorFlow Keras model representing the generator with specialized branches for
         price and volume that exchange information.
     """
-    size = 2  # Factor to reduce the number of units in the layers ( dividable by 2 )
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
     price_path = SplitLayer(0, 1)(input_layer)
     volume_path = SplitLayer(1, 2)(input_layer)
 
+    join_path = layers.Concatenate()([price_path, volume_path])
+    join_path = layers.Dense(int(GAN_SIZE * 32), name='Dense_Join_1')(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
+    join_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation='softplus'))(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), activation='softplus')(join_path)
+
     # Initial Common LSTM Layer
-    price_path = layers.LSTM(int(size * 128), return_sequences=True)(price_path)
-    price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
-
-    # price_path = layers.LSTM(int(size * 128), return_sequences=True)(price_path)
-    price_path = layers.Dense(int(size * 128), activation='softplus')(price_path)
-    price_path = layers.Dropout(0.5)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 128), return_sequences=True, activation='softplus')(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus')(price_path)
+    # price_path = layers.Dropout(0.5)(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus')(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 8), activation='softplus')(price_path)
 
     # Initial Common LSTM Layer
-    volume_path = layers.LSTM(int(size * 32), return_sequences=True)(volume_path)
-    volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
-    volume_path = layers.Dense(int(size * 32), activation='relu')(volume_path)
-    volume_path = layers.Dropout(0.5)(volume_path)
-
-    # Price path
-    price_path = layers.Dense(int(size * 8))(price_path)
-    # price_path = layers.LSTM(int(size * 8), return_sequences=True)(price_path)
-
-    # Volume path
-    volume_path = layers.Dense(int(size * 8))(volume_path)
-    # volume_path = layers.LSTM(int(size * 8), return_sequences=True)(volume_path)
-
-    # Combine information from both branches and allow exchange before the final output
-    # combined_path = layers.Concatenate(axis=-1)([price_path, volume_path])
-    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=2)(price_path, volume_path)
-    combined_path = layers.Dense(int(size * 8))(combined_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True, activation='relu')(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu')(volume_path)
+    # volume_path = layers.Dropout(0.5)(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu')(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 8), activation='relu')(volume_path)
 
     # Final output layers with different activation functions
-    final_price = layers.Dense(1, activation='softplus')(combined_path)  # salida lineal para 'Price'
-    final_volume = layers.Dense(1, activation='relu')(combined_path)  # usar relu para 'Volume'
+    final_price = layers.Dense(int(GAN_SIZE * 2), activation='softplus', name='Final_Price')(price_path)
+    final_volume = layers.Dense(int(GAN_SIZE * 2), activation='relu', name='Final_Volume')(volume_path)
 
     # Concatenate the outputs of both branches
-    final_output = layers.Concatenate()([final_price, final_volume])
+    final_output = layers.MultiHeadAttention(num_heads=3, key_dim=3)(final_price, final_volume, join_path)
+    final_output = layers.Dense(2, activation='softplus', name='Final_Output')(final_output)
 
     model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
@@ -95,44 +89,43 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     Returns:
         A TensorFlow Keras model representing the discriminator with separate pathways.
     """
-    size = 2  # Factor to reduce the number of units in the layers  ( dividable by 2 )
     input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
 
     price_path = SplitLayer(0, 1)(input_layer)
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    price_path = layers.LSTM(int(size * 32), return_sequences=True)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True)(price_path)
     # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
     # price_path = layers.LSTM(int(size * 128))(price_path)
-    price_path = layers.Dense(int(size * 4))(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 4))(price_path)
     price_path = layers.Dropout(0.5)(price_path)
-    price_path = layers.Dense(int(size * 16), activation='softplus')(price_path)
-    price_path = layers.Reshape((-1, int(size * 16)))(price_path)
-    price_path = layers.LSTM(int(size * 16), return_sequences=True)(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16), activation='softplus')(price_path)
+    price_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True)(price_path)
     # price_path = layers.LSTM(int(size * 32), return_sequences=False)(price_path)
-    price_path = layers.Dense(int(size * 16))(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16))(price_path)
 
     # Volume path
-    volume_path = layers.LSTM(int(size * 32), return_sequences=True)(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True)(volume_path)
     # volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
     # volume_path = layers.LSTM(int(size * 128))(volume_path)
-    volume_path = layers.Dense(int(size * 4))(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 4))(volume_path)
     volume_path = layers.Dropout(0.5)(volume_path)
-    volume_path = layers.Dense(int(size * 16), activation='relu')(volume_path)
-    volume_path = layers.Reshape((-1, int(size * 16)))(volume_path)
-    volume_path = layers.LSTM(int(size * 16), return_sequences=True)(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 16), activation='relu')(volume_path)
+    volume_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True)(volume_path)
     # volume_path = layers.LSTM(int(size * 32), return_sequences=False)(volume_path)
-    volume_path = layers.Dense(int(size * 16))(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 16))(volume_path)
 
     # Combine the outputs of both branches
     # combined_path = layers.Concatenate()([price_path, volume_path])
 
     # MultiHeadAttention
-    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=int(size * 16))(price_path, volume_path)
+    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=int(GAN_SIZE * 16))(price_path, volume_path)
 
     # Asegurarse que sigue habiendo una dimensión temporal
-    combined_path = layers.TimeDistributed(layers.Dense(int(size * 16)))(combined_path)
+    combined_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16)))(combined_path)
     combined_path = layers.GlobalAveragePooling1D()(combined_path)
 
     final_output = layers.Dense(1, activation='sigmoid')(combined_path)
@@ -169,7 +162,8 @@ def build_gan(latent_dim: int = LATENT_DIM,
         staircase=True)
 
     # Optimizers with a custom learning rate
-    gen_optimizer = Adam(learning_rate=lr_schedule, beta_1=BETA_1, beta_2=BETA_2)
+    # gen_optimizer = Adam(learning_rate=lr_schedule, beta_1=BETA_1, beta_2=BETA_2)
+    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2)
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
 
     # Compile the discriminator

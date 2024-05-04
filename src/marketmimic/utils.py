@@ -1,10 +1,12 @@
 import random
 import warnings
 import zipfile
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import matplotlib.pyplot as plt
 import mplfinance as mpf
+import numpy as np
 import pandas as pd
 
 
@@ -209,3 +211,83 @@ def plot_ohlcv(df_ohlcv: pd.DataFrame):
 
     # Show the plot
     mpf.show()
+
+
+def generate_volume_data_from_func(num_points: int, frequency: float = 23, amplitude: float = 3, phase: float = 307) -> \
+        List[int]:
+    """
+    Generate synthetic volume data based on a complex sine function with specified parameters.
+
+    Args:
+    - num_points (int): Number of data points to generate.
+    - frequency (float): Frequency of the sine wave.
+    - amplitude (float): Amplitude of the sine wave.
+    - phase (float): Phase shift of the sine wave, measured in radians.
+
+    Returns:
+    - List[int]: List of synthetic volume data points, rounded to nearest ten and clipped between 10 and 10000.
+    """
+    x_values = np.linspace(0, 2 * np.pi, num_points)
+    y_values = amplitude * amplitude * (np.sin(frequency * x_values + phase) + np.cos(frequency * x_values + phase) + (
+            x_values * np.sin(frequency * x_values + phase))) + phase
+    y_values = np.clip(y_values, 10, 10000)
+    y_values = np.round(y_values / 10) * 10
+    return list(y_values.astype(int))
+
+
+def generate_price_data_from_func(num_points: int, frequency: float = 10, amplitude: float = 2, phase: float = 100) -> \
+        List[int]:
+    """
+    Generate synthetic price data based on a complex sine function with modifications to create non-linear patterns.
+
+    Args:
+    - num_points (int): Number of data points to generate.
+    - frequency (float): Frequency of the sine wave.
+    - amplitude (float): Amplitude of the sine wave.
+    - phase (float): Phase shift of the sine wave, measured in radians.
+
+    Returns:
+    - List[int]: List of synthetic price data points, clipped between 1 and 10000 and rounded to nearest whole number.
+    """
+    # Generate x values
+    x_values = np.linspace(0, 2 * np.pi, num_points)
+
+    # Generate y values based on sine function
+    y_values = amplitude * x_values + amplitude * np.sin(frequency * x_values + phase)
+    y_values = y_values + y_values.min() + phase
+
+    y_values = np.clip(y_values, 10, None)
+    y_values = np.clip(y_values, 0, 10000)
+
+    y_values = np.round(y_values, 2)
+
+    return list(y_values.astype(float))
+
+
+import pandas as pd
+
+
+def generate_market_data_from_func(num_points: int) -> pd.DataFrame:
+    """
+    Generate a DataFrame with synthetic market data for "Price" and "Volume",
+    indexed by 'Epoch'.
+
+    Args:
+    - num_points (int): Number of data points to generate for each column.
+
+    Returns:
+    - pd.DataFrame: DataFrame containing the columns "Price" and "Volume" with synthetic data,
+      indexed by 'Epoch'.
+    """
+    # Generate data using the previously defined functions
+    volume_data = generate_volume_data_from_func(num_points)
+    price_data = generate_price_data_from_func(num_points)
+
+    # Create a DataFrame with the generated data
+    market_data = pd.DataFrame({
+        "Price": price_data,
+        "Volume": volume_data
+    }, index=pd.Index(range(num_points), name='Epoch'))
+
+    return market_data
+

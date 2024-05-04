@@ -7,3 +7,5 @@ SMOOTH_FACTOR = 0.1  # Factor to smooth the labels for the discriminator
 SEQUENCE_LENGTH = 100
 DEFAULT_COLUMNS = ['Price', 'Volume']
 SHOW_LOSS_EVERY = 10
+GAN_ARCH_VERSION = 0.1
+GAN_SIZE = 2

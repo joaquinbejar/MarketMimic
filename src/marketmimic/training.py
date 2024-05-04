@@ -11,7 +11,6 @@ from marketmimic.data import create_sliding_windows
 
 tf.config.run_functions_eagerly(True)
 
-
 @tf.function
 def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
                real_y: tf.Tensor, fake_y: tf.Tensor) -> Tuple[float, float, float, float, float]:

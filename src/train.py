@@ -2,26 +2,29 @@ from tabulate import tabulate
 
 from marketmimic.constants import LATENT_DIM
 from marketmimic.data import prepare_data, inverse_scale_data, invert_sliding_windows
-from marketmimic.file import load_model_from_file, save_model_to_file, generate_filename_with_timestamp
+from marketmimic.file import save_models, load_models
 from marketmimic.loss import *
 from marketmimic.metric import *
 from marketmimic.model import build_gan, generate_data
 from marketmimic.training import train_gan
-from marketmimic.utils import load_data, join_date_time
+from marketmimic.utils import load_data, join_date_time, generate_market_data_from_func
 
 if __name__ == '__main__':
-    zip_file = '../data/AAPL-Tick-Standard.txt.zip'
-    txt_file = 'AAPL-Tick-Standard.txt'
+    # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
+    # txt_file = 'AAPL-Tick-Standard.txt'
+    #
+    # # Load data
+    # df = load_data(zip_file, txt_file)
+    # df = join_date_time(df, 'Date', 'Time')
 
-    # Load data
-    df = load_data(zip_file, txt_file)
-    df = join_date_time(df, 'Date', 'Time')
+    df = generate_market_data_from_func(10_000_000)
+    print(df.sample(15))
 
     # Prepare data
     data_scaled, scalers = prepare_data(df)
 
     loss_func = wasserstein_loss
-    metrics_func = dtw_distance
+    metrics_func = rmse
 
     print(f"Using Loss function: {loss_func.__name__}")
     print(f"Using Metrics function: {metrics_func.__name__}")
@@ -37,21 +40,16 @@ if __name__ == '__main__':
 
     start = time.time()
     # Train GAN
-    train_gan(generator, discriminator, gan, data_scaled, epochs=2000, batch_size=32)
+    train_gan(generator, discriminator, gan, data_scaled, epochs=200, batch_size=128)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")
 
-    path = '../models/'
-    # Save to file
-    generator_filename = generate_filename_with_timestamp('generator')
-    save_model_to_file(generator, path + generator_filename)
-
-    gan_filename = generate_filename_with_timestamp('gan')
-    save_model_to_file(gan, path + gan_filename)
-
-    # Load from file
-    generator = load_model_from_file(path + generator_filename, loss_func)
-    gan = load_model_from_file(path + gan_filename, loss_func, metrics_func)
+    # path = '../models/'
+    # generator_filename, discriminator_filename, gan_filename = save_models(generator, discriminator, gan, path)
+    # generator, discriminator, gan = load_models(generator_filename, discriminator_filename, gan_filename,
+    #                                             loss_func=loss_func,
+    #                                             metrics_func=metrics_func,
+    #                                             path=path)
 
     new_data = generate_data(generator, 100, LATENT_DIM)
 
@@ -60,4 +58,3 @@ if __name__ == '__main__':
     original_data = inverse_scale_data(inverse_data, scalers)
 
     print(tabulate(original_data, headers='keys', tablefmt='psql'))
-
