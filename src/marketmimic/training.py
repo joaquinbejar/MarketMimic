@@ -1,87 +1,68 @@
-import warnings
-from typing import Tuple
-
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import layers
 from tensorflow.keras.models import Model
 
-from marketmimic.constants import SMOOTH_FACTOR, SEQUENCE_LENGTH, SHOW_LOSS_EVERY
+from marketmimic.constants import SEQUENCE_LENGTH, SHOW_LOSS_EVERY
 from marketmimic.data import create_sliding_windows
 
-tf.config.run_functions_eagerly(True)
 
-@tf.function
-def train_step(generator: Model, discriminator: Model, gan: Model, real_data: np.ndarray, noise: np.ndarray,
-               real_y: tf.Tensor, fake_y: tf.Tensor) -> Tuple[float, float, float, float, float]:
+def train_gan(generator: Model, discriminator: Model,
+              gen_optimizer: tf.keras.optimizers.Optimizer,
+              disc_optimizer: tf.keras.optimizers.Optimizer,
+              dataset: np.ndarray, epochs: int, batch_size: int) -> None:
     """
-    Performs a single training step for both the generator and discriminator.
-
-    Args:
-        generator (Model): The generator component of the GAN.
-        discriminator (Model): The discriminator component of the GAN.
-        gan (Model): The composite model where the generator's output is fed to the discriminator.
-        real_data (np.ndarray): A batch of real data samples.
-        noise (np.ndarray): A batch of random noise vectors.
-        real_y (tf.Tensor): Labels for real data (typically ones).
-        fake_y (tf.Tensor): Labels for fake data (typically zeros).
-
-    Returns:
-        Tuple[float, float, float]: The discriminator loss on real data, discriminator loss on fake data, and
-        generator loss.
-    """
-    with warnings.catch_warnings():
-        # ignore UserWarning
-        warnings.simplefilter('ignore', UserWarning)
-        # Train discriminator with real data
-        d_loss_real, accuracy_real = discriminator.train_on_batch(real_data, real_y)
-        # Generate fake data
-        fake_data = generator(noise, training=True)
-
-        # If the generator produces a list of outputs, concatenate them before sending to the discriminator
-        if isinstance(fake_data, list):
-            fake_data = layers.Concatenate(axis=-1)(fake_data)
-
-        # Train discriminator with fake data
-        d_loss_fake, accuracy_fake = discriminator.train_on_batch(fake_data, fake_y)
-        # Train the generator
-        gan_output = gan.train_on_batch(noise, real_y)
-        g_loss = gan_output[0]  # Assuming the first element is the loss
-        return d_loss_real, d_loss_fake, g_loss, accuracy_real, accuracy_fake
-
-
-def train_gan(generator: Model, discriminator: Model, gan: Model, dataset: np.ndarray, epochs: int,
-              batch_size: int) -> None:
-    """
-    Trains the Generative Adversarial Network.
-
-    Args:
-        generator (Model): The generator model.
-        discriminator (Model): The discriminator model.
-        gan (Model): The composite GAN model.
-        dataset (np.ndarray): The complete dataset for training.
-        epochs (int): The number of epochs to train the models.
-        batch_size (int): The size of each training batch.
-
-    Returns:
-        None: This function does not return any values but will print the training progress.
+    Trains the GAN using GradientTape for gradient application.
     """
     sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
 
     for epoch in range(epochs):
-        idx = np.random.randint(0, sequence_data.shape[0], batch_size)
-        real_data = sequence_data[idx].astype('float32')  # Datos reales son ahora secuencias
+        print(f"Starting epoch {epoch + 1}/{epochs}")
+        for idx in range(0, sequence_data.shape[0], batch_size):
+            batch_data = sequence_data[idx:idx + batch_size]
+            current_batch_size = batch_data.shape[0]  # Actual size of the batch, which might be less than batch_size
+            noise = tf.random.normal((current_batch_size, SEQUENCE_LENGTH, generator.input_shape[-1]))
 
-        noise = np.random.normal(0, 1, size=(batch_size, SEQUENCE_LENGTH, 2)).astype('float32')
+            with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
+                fake_data = generator(noise, training=True)
+                real_output = discriminator(batch_data, training=True)
+                fake_output = discriminator(fake_data, training=True)
 
-        real_y = tf.ones((batch_size, 1), dtype=tf.float32) * (1 - SMOOTH_FACTOR)
-        fake_y = tf.zeros((batch_size, 1), dtype=tf.float32) + SMOOTH_FACTOR
+                # Use current_batch_size to create labels of the correct size
+                real_labels = tf.ones_like(real_output)
+                fake_labels = tf.zeros_like(fake_output)
 
-        d_loss_real, d_loss_fake, g_loss, a_real, a_fake = train_step(generator, discriminator, gan, real_data, noise,
-                                                                      real_y, fake_y)
+                disc_loss = tf.reduce_mean(tf.losses.binary_crossentropy(real_labels, real_output) +
+                                           tf.losses.binary_crossentropy(fake_labels, fake_output))
+                gen_loss = tf.reduce_mean(tf.losses.binary_crossentropy(real_labels, fake_output))
 
-        if epoch % SHOW_LOSS_EVERY == 0:
-            # Compute average discriminator loss directly using NumPy values
-            avg_d_loss = (d_loss_real + d_loss_fake) / 2
-            print(
-                f"Epoch: {epoch} [D loss: {avg_d_loss:.4f}, G loss: {g_loss:.4f}] [A real: {a_real:.4f}, A fake: {a_fake:.4f}]")
+            gradients_of_generator = gen_tape.gradient(gen_loss, generator.trainable_variables)
+            gradients_of_discriminator = disc_tape.gradient(disc_loss, discriminator.trainable_variables)
+
+            gen_optimizer.apply_gradients(zip(gradients_of_generator, generator.trainable_variables))
+            disc_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
+
+            if idx % SHOW_LOSS_EVERY == 0:  # Adjust logging frequency according to your preference
+                print(
+                    f"Batch {idx // batch_size + 1}/{(sequence_data.shape[0] + batch_size - 1) // batch_size}: Disc Loss = {disc_loss.numpy()}, Gen Loss = {gen_loss.numpy()}")
+
+
+def train_gan_fit(gan: Model, dataset: np.ndarray, epochs: int, batch_size: int) -> None:
+    """
+    Trains the GAN using the .fit() method which manages the training loop.
+
+    Args:
+        gan (Model): The compiled GAN model.
+        dataset (np.ndarray): The complete dataset for training.
+        epochs (int): The number of epochs to train the models.
+        batch_size (int): The size of each training batch.
+    """
+    sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
+
+    # Generamos ruido aleatorio como entrada al generador
+    noise = np.random.normal(0, 1, (len(sequence_data), SEQUENCE_LENGTH, 2))
+
+    # Las etiquetas para el GAN deben ser consistentes con lo que el discriminador espera para "datos falsos"
+    # generalmente esto es '1' para todos los datos generados ya que queremos engañar al discriminador
+    fake_y = np.ones((len(sequence_data), 1), dtype=np.float32)
+
+    gan.fit(x=noise, y=fake_y, epochs=epochs, batch_size=batch_size, shuffle=True)

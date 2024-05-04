@@ -5,7 +5,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import load_model
 
 from marketmimic.constants import GAN_ARCH_VERSION
-
+from tensorflow.keras.metrics import MeanSquaredError, MeanAbsoluteError, RootMeanSquaredError
 
 def load_model_from_file(path: str, loss_funcion: callable, metric: Optional[callable] = None) -> Model:
     """
@@ -20,7 +20,7 @@ def load_model_from_file(path: str, loss_funcion: callable, metric: Optional[cal
     if metric is None:
         model = load_model(path, custom_objects={loss_funcion.__name__: loss_funcion})
     else:
-        model = load_model(path, custom_objects={loss_funcion.__name__: loss_funcion, metric.__name__: metric})
+        model = load_model(path, custom_objects={loss_funcion.__name__: loss_funcion, 'MeanSquaredError': metric})
     print(f"Model loaded from {path}")
     return model
 

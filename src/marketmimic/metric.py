@@ -50,6 +50,9 @@ class F1Score(tf.keras.metrics.Metric):
         self.precision.reset_states()
         self.recall.reset_states()
 
+    def __name__(self):
+        return 'f1_score'
+
 
 def inception_score(images, batch_size=32, resize=False, splits=1):
     assert images.shape[1:] == (299, 299, 3), "The images should be of shape (299, 299, 3)."

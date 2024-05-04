@@ -9,7 +9,7 @@ from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENER
     BETA_1, BETA_2, GAN_SIZE
 from marketmimic.loss import *
 from marketmimic.metric import *
-
+from tensorflow.keras.metrics import BinaryCrossentropy
 
 class SplitLayer(layers.Layer):
     def __init__(self, index_start, index_end, **kwargs):
@@ -134,59 +134,97 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     return model
 
 
+# def build_gan(latent_dim: int = LATENT_DIM,
+#               dis_lr: float = DISCRIMINATOR_LEARNING_RATE,
+#               gen_lr: float = GENERATOR_LEARNING_RATE,
+#               loss_func: callable = least_squares_loss,
+#               metrics: callable = dtw_distance,
+#               ) -> Tuple[Model, Model, Model, Adam, Adam]:
+#     """
+#     Builds and compiles both the generator and discriminator to form the GAN.
+#     :param metrics: function to measure the distance between the distribution of generated data and real data.
+#     :param loss_func: function to measure the performance of a classification model.
+#     :param gen_lr: generator learning rate (default: constant GENERATOR_LEARNING_RATE)
+#     :param dis_lr: discriminator learning rate (default: constant DISCRIMINATOR_LEARNING_RATE)
+#     :param latent_dim: Dimension of the latent space.
+#     :return: A tuple containing the generator, discriminator, and the GAN model.
+#     :example: generator, discriminator, gan = build_gan(LATENT_DIM)
+#     """
+#     # Create and compile the generator and discriminator
+#     generator = build_generator(latent_dim)
+#     discriminator = build_discriminator()
+#
+#     # Exponential decay of the learning rate
+#     lr_schedule = ExponentialDecay(
+#         initial_learning_rate=gen_lr,
+#         decay_steps=1000,
+#         decay_rate=0.96,
+#         staircase=True)
+#
+#     # Optimizers with a custom learning rate
+#     # gen_optimizer = Adam(learning_rate=lr_schedule, beta_1=BETA_1, beta_2=BETA_2)
+#     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2)
+#     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
+#
+#
+#     # Compile the discriminator
+#     discriminator.compile(loss=loss_func, optimizer=disc_optimizer, metrics=[BinaryCrossentropy()])
+#     # discriminator.compile(loss='binary_crossentropy', optimizer=disc_optimizer, metrics=['accuracy'])
+#
+#
+#     # Ensure the discriminator's weights are not updated during the GAN training
+#     discriminator.trainable = False
+#
+#     # Create and compile the GAN
+#     gan_input = layers.Input(shape=(None, latent_dim))
+#     fake_data = generator(gan_input)
+#
+#     # If the generator produces a list of outputs (price and volume), concatenate them
+#     combined_output = fake_data
+#
+#     gan_output = discriminator(combined_output)
+#     gan = models.Model(gan_input, gan_output, name="GAN")
+#     gan.compile(loss=loss_func, optimizer=gen_optimizer)
+#     discriminator.trainable = True
+#
+#     return generator, discriminator, gan, gen_optimizer, disc_optimizer
+
+
 def build_gan(latent_dim: int = LATENT_DIM,
               dis_lr: float = DISCRIMINATOR_LEARNING_RATE,
               gen_lr: float = GENERATOR_LEARNING_RATE,
-              loss_func: callable = least_squares_loss,
-              metrics: callable = dtw_distance,
-              ) -> Tuple[Model, Model, Model]:
+              ) -> Tuple[Model, Model, Model, Adam, Adam]:
     """
-    Builds and compiles both the generator and discriminator to form the GAN.
-    :param metrics: function to measure the distance between the distribution of generated data and real data.
-    :param loss_func: function to measure the performance of a classification model.
-    :param gen_lr: generator learning rate (default: constant GENERATOR_LEARNING_RATE)
-    :param dis_lr: discriminator learning rate (default: constant DISCRIMINATOR_LEARNING_RATE)
-    :param latent_dim: Dimension of the latent space.
-    :return: A tuple containing the generator, discriminator, and the GAN model.
-    :example: generator, discriminator, gan = build_gan(LATENT_DIM)
+    Builds both the generator and discriminator, and returns these along with their optimizers.
+    Does not compile the GAN since it's not directly used for training with .fit().
+
+    Args:
+        latent_dim: Dimension of the latent space.
+        gen_lr: Generator learning rate.
+        dis_lr: Discriminator learning rate.
+
+    Returns:
+        A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
     """
-    # Create and compile the generator and discriminator
     generator = build_generator(latent_dim)
     discriminator = build_discriminator()
 
-    # Exponential decay of the learning rate
-    lr_schedule = ExponentialDecay(
-        initial_learning_rate=gen_lr,
-        decay_steps=1000,
-        decay_rate=0.96,
-        staircase=True)
-
-    # Optimizers with a custom learning rate
-    # gen_optimizer = Adam(learning_rate=lr_schedule, beta_1=BETA_1, beta_2=BETA_2)
     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2)
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
 
-    # Compile the discriminator
-    discriminator.compile(loss=loss_func, optimizer=disc_optimizer, metrics=[metrics])
-
-    # Ensure the discriminator's weights are not updated during the GAN training
+    # Ensure the discriminator's weights are not updated during the GAN model usage
     discriminator.trainable = False
 
-    # Create and compile the GAN
+    # Setup GAN model for structural purposes, without compiling
     gan_input = layers.Input(shape=(None, latent_dim))
     fake_data = generator(gan_input)
-
-    # If the generator produces a list of outputs (price and volume), concatenate them
-    if isinstance(fake_data, list):
-        combined_output = layers.Concatenate(axis=-1)(fake_data)
-    else:
-        combined_output = fake_data
-
-    gan_output = discriminator(combined_output)
+    gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output, name="GAN")
-    gan.compile(loss=loss_func, optimizer=gen_optimizer)
 
-    return generator, discriminator, gan
+    # Restore trainability if needed elsewhere
+    discriminator.trainable = True
+
+    return generator, discriminator, gan, gen_optimizer, disc_optimizer
 
 
 def generate_noise(batch_size: int, latent_dim: int = LATENT_DIM) -> np.ndarray:
@@ -220,8 +258,5 @@ def generate_data(generator: Model, num_samples: int, latent_dim: int = LATENT_D
 
     # Generate data from noise
     generated_data = generator.predict(noise)
-    # If the generator produces a list of outputs, concatenate them before sending to the discriminator
-    if isinstance(generated_data, list):
-        generated_data = layers.Concatenate(axis=-1)(generated_data)
 
     return generated_data  # Shape (num_samples, SEQUENCE_LENGTH, latent_dim)
