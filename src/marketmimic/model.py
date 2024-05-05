@@ -2,14 +2,16 @@ from typing import Tuple
 
 import numpy as np
 from tensorflow.keras import layers, models, Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
+from tensorflow.keras.activations import silu
 from tensorflow.keras.initializers import HeNormal
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
+
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
     BETA_1, BETA_2, GAN_SIZE
-from marketmimic.loss import *
 from marketmimic.metric import *
-from tensorflow.keras.metrics import BinaryCrossentropy
+
 
 class SplitLayer(layers.Layer):
     def __init__(self, index_start, index_end, **kwargs):
@@ -47,33 +49,40 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     volume_path = SplitLayer(1, 2)(input_layer)
 
     join_path = layers.Concatenate()([price_path, volume_path])
-    join_path = layers.Dense(int(GAN_SIZE * 32), name='Dense_Join_1', kernel_initializer=HeNormal())(join_path)
-    join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
-    join_path = layers.Dense(int(GAN_SIZE * 32))(join_path)
-    join_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation='softplus'))(join_path)
-    join_path = layers.Dense(int(GAN_SIZE * 32), activation='softplus')(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), name='Dense_Join_1', kernel_initializer=HeNormal(), activation=silu,
+                             kernel_regularizer=l2(0.01))(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), activation=silu)(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), activation=silu)(join_path)
+    join_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation=silu))(join_path)
+    join_path = layers.Dense(int(GAN_SIZE * 32), activation=silu)(join_path)
+    join_path = BatchNormalization()(join_path)
 
     # Initial Common LSTM Layer
-    price_path = layers.LSTM(int(GAN_SIZE * 128), return_sequences=True, activation='softplus')(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus', kernel_initializer=HeNormal())(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 128), kernel_initializer=HeNormal(), return_sequences=True, activation=silu,
+                             kernel_regularizer=l2(0.01))(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 128), activation=silu, kernel_initializer=HeNormal())(price_path)
     # price_path = layers.Dropout(0.5)(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 128), activation='softplus')(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 8), activation='softplus')(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 128), activation=silu)(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 8), activation=silu)(price_path)
+    price_path = BatchNormalization()(price_path)
 
     # Initial Common LSTM Layer
-    volume_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True, activation='relu')(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu', kernel_initializer=HeNormal())(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True,
+                              activation=layers.PReLU(), kernel_regularizer=l2(0.01))(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 32), activation=layers.PReLU(), kernel_initializer=HeNormal())(
+        volume_path)
     # volume_path = layers.Dropout(0.5)(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 32), activation='relu')(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 8), activation='relu')(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 32), activation=layers.PReLU())(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 8), activation=layers.PReLU())(volume_path)
+    volume_path = BatchNormalization()(volume_path)
 
     # Final output layers with different activation functions
-    final_price = layers.Dense(int(GAN_SIZE * 2), activation='softplus', name='Final_Price')(price_path)
-    final_volume = layers.Dense(int(GAN_SIZE * 2), activation='relu', name='Final_Volume')(volume_path)
+    final_price = layers.Dense(int(GAN_SIZE * 2), activation=silu, name='Final_Price')(price_path)
+    final_volume = layers.Dense(int(GAN_SIZE * 2), activation=layers.PReLU(), name='Final_Volume')(volume_path)
 
     # Concatenate the outputs of both branches
     final_output = layers.MultiHeadAttention(num_heads=3, key_dim=3)(final_price, final_volume, join_path)
-    final_output = layers.Dense(2, activation='softplus', name='Final_Output')(final_output)
+    final_output = layers.Dense(2, activation=silu, name='Final_Output')(final_output)
 
     model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
@@ -95,37 +104,38 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    price_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True, activation=silu,
+                             kernel_regularizer=l2(0.01))(price_path)
     # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
     # price_path = layers.LSTM(int(size * 128))(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal())(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=silu)(price_path)
     price_path = layers.Dropout(0.5)(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 16), activation='softplus')(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
     price_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(price_path)
-    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=silu)(price_path)
     # price_path = layers.LSTM(int(size * 32), return_sequences=False)(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 16))(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
+    price_path = BatchNormalization()(price_path)
 
     # Volume path
-    volume_path = layers.LSTM(int(GAN_SIZE * 32), return_sequences=True)(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True,
+                              activation=layers.PReLU(), kernel_regularizer=l2(0.01))(volume_path)
     # volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
     # volume_path = layers.LSTM(int(size * 128))(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 4))(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=layers.PReLU())(volume_path)
     volume_path = layers.Dropout(0.5)(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 16), activation='relu')(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
     volume_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(volume_path)
-    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True)(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=layers.PReLU())(volume_path)
     # volume_path = layers.LSTM(int(size * 32), return_sequences=False)(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 16))(volume_path)
-
-    # Combine the outputs of both branches
-    # combined_path = layers.Concatenate()([price_path, volume_path])
+    volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
+    volume_path = BatchNormalization()(volume_path)
 
     # MultiHeadAttention
     combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=int(GAN_SIZE * 16))(price_path, volume_path)
 
     # Asegurarse que sigue habiendo una dimensión temporal
-    combined_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16)))(combined_path)
+    combined_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation=silu))(combined_path)
     combined_path = layers.GlobalAveragePooling1D()(combined_path)
 
     final_output = layers.Dense(1, activation='sigmoid')(combined_path)

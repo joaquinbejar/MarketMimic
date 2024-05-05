@@ -18,6 +18,7 @@ if __name__ == '__main__':
     # Load data
     df = load_data(zip_file, txt_file)
     df = join_date_time(df, 'Date', 'Time')
+    # df = df.iloc[:100]
 
     # df = generate_market_data_from_func(1000)
 
@@ -37,7 +38,7 @@ if __name__ == '__main__':
     # Calculate time to train
     start = time.time()
     train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-              data_scaled, epochs=2, batch_size=1024)
+              data_scaled, epochs=2, batch_size=64)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")
 
