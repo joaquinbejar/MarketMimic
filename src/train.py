@@ -4,7 +4,7 @@ import time
 import joblib
 from tabulate import tabulate
 
-from marketmimic.constants import LATENT_DIM
+from marketmimic.constants import LATENT_DIM, BATCH_SIZE, EPOCHS
 from marketmimic.data import prepare_data, inverse_scale_data, invert_sliding_windows
 from marketmimic.metric import *
 from marketmimic.model import build_gan, generate_data
@@ -16,11 +16,11 @@ if __name__ == '__main__':
     txt_file = 'AAPL-Tick-Standard.txt'
 
     # Load data
-    df = load_data(zip_file, txt_file)
-    df = join_date_time(df, 'Date', 'Time')
+    # df = load_data(zip_file, txt_file)
+    # df = join_date_time(df, 'Date', 'Time')
     # df = df.iloc[:100]
 
-    # df = generate_market_data_from_func(1000)
+    df = generate_market_data_from_func(1000000)
 
     print(f'Original data shape: {df.shape}')
     print(df.sample(15))
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # Calculate time to train
     start = time.time()
     train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-              data_scaled, epochs=2, batch_size=64)
+              data_scaled, epochs=EPOCHS, batch_size=BATCH_SIZE)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")
 

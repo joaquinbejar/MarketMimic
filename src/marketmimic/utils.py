@@ -213,53 +213,68 @@ def plot_ohlcv(df_ohlcv: pd.DataFrame):
     mpf.show()
 
 
-def generate_volume_data_from_func(num_points: int, frequency: float = 23, amplitude: float = 3, phase: float = 307) -> \
+def generate_volume_data_from_func(num_points: int, frequency: float = 10, amplitude: float = 4, phase: float = 100) -> \
         List[int]:
     """
-    Generate synthetic volume data based on a complex sine function with specified parameters.
+    Generate synthetic data based on a sine function.
 
     Args:
     - num_points (int): Number of data points to generate.
     - frequency (float): Frequency of the sine wave.
     - amplitude (float): Amplitude of the sine wave.
-    - phase (float): Phase shift of the sine wave, measured in radians.
+    - phase (float): Phase shift of the sine wave (in radians).
 
     Returns:
-    - List[int]: List of synthetic volume data points, rounded to nearest ten and clipped between 10 and 10000.
+    - x_values (numpy.ndarray): Array of x values.
+    - y_values (numpy.ndarray): Array of corresponding y values.
     """
+    # Generate x values
     x_values = np.linspace(0, 2 * np.pi, num_points)
-    y_values = amplitude * amplitude * (np.sin(frequency * x_values + phase) + np.cos(frequency * x_values + phase) + (
-            x_values * np.sin(frequency * x_values + phase))) + phase
-    y_values = np.clip(y_values, 10, 10000)
-    y_values = np.round(y_values / 10) * 10
+    # x_values = np.arange(0, num_points)
+
+    # Generate y values based on sine function
+    # y_values = amplitude * amplitude * (np.sin(frequency * x_values + phase) + np.cos(frequency * x_values + phase) + (x_values * np.sin(frequency * x_values + phase))) + phase
+    y_values = np.cos(frequency * x_values + phase) * frequency * amplitude
+    y_values = y_values + y_values.min() + phase
+
+    y_values = np.clip(y_values, 10, None)
+    # y_values = np.clip(y_values, 0, 10000)
+
+    # y_values = np.round(y_values)
+    y_values = np.round(y_values / 5) * 5
+
     return list(y_values.astype(int))
 
 
 def generate_price_data_from_func(num_points: int, frequency: float = 10, amplitude: float = 2, phase: float = 100) -> \
         List[int]:
     """
-    Generate synthetic price data based on a complex sine function with modifications to create non-linear patterns.
+    Generate synthetic data based on a sine function.
 
     Args:
     - num_points (int): Number of data points to generate.
     - frequency (float): Frequency of the sine wave.
     - amplitude (float): Amplitude of the sine wave.
-    - phase (float): Phase shift of the sine wave, measured in radians.
+    - phase (float): Phase shift of the sine wave (in radians).
 
     Returns:
-    - List[int]: List of synthetic price data points, clipped between 1 and 10000 and rounded to nearest whole number.
+    - x_values (numpy.ndarray): Array of x values.
+    - y_values (numpy.ndarray): Array of corresponding y values.
     """
     # Generate x values
     x_values = np.linspace(0, 2 * np.pi, num_points)
+    # x_values = np.arange(0, num_points)
 
     # Generate y values based on sine function
-    y_values = amplitude * x_values + amplitude * np.sin(frequency * x_values + phase)
+    # y_values = amplitude * x_values  + amplitude * np.sin(frequency * x_values + phase)
+    y_values = np.sin(frequency * x_values + phase) * amplitude
     y_values = y_values + y_values.min() + phase
 
     y_values = np.clip(y_values, 10, None)
     y_values = np.clip(y_values, 0, 10000)
 
     y_values = np.round(y_values, 2)
+    # y_values = np.round(y_values / 10) * 10
 
     return list(y_values.astype(float))
 
@@ -290,4 +305,3 @@ def generate_market_data_from_func(num_points: int) -> pd.DataFrame:
     }, index=pd.Index(range(num_points), name='Epoch'))
 
     return market_data
-

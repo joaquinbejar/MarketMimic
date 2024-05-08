@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.activations import silu
-from tensorflow.keras.initializers import HeNormal
+from tensorflow.keras.initializers import HeNormal, RandomUniform, GlorotUniform
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
@@ -59,7 +59,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
 
     # Initial Common LSTM Layer
     price_path = layers.LSTM(int(GAN_SIZE * 128), kernel_initializer=HeNormal(), return_sequences=True, activation=silu,
-                             kernel_regularizer=l2(0.01))(price_path)
+                             kernel_regularizer=l2(0.01), name='LSTM_1_PricePath')(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 128), activation=silu, kernel_initializer=HeNormal())(price_path)
     # price_path = layers.Dropout(0.5)(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 128), activation=silu)(price_path)
@@ -68,7 +68,8 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
 
     # Initial Common LSTM Layer
     volume_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True,
-                              activation=layers.PReLU(), kernel_regularizer=l2(0.01))(volume_path)
+                              activation=layers.PReLU(), kernel_regularizer=l2(0.01), name='LSTM_1_VolumePath')(
+        volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 32), activation=layers.PReLU(), kernel_initializer=HeNormal())(
         volume_path)
     # volume_path = layers.Dropout(0.5)(volume_path)
@@ -84,6 +85,57 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     final_output = layers.MultiHeadAttention(num_heads=3, key_dim=3)(final_price, final_volume, join_path)
     final_output = layers.Dense(2, activation=silu, name='Final_Output')(final_output)
 
+    model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
+    return model
+
+
+def build_generator_simple(latent_dim: int = LATENT_DIM) -> models.Model:
+    """
+    Builds and returns the generator model with LSTM layers, specialized for separate handling
+    of price and volume features, with intermediate cross-communication between the two branches.
+
+    Args:
+        latent_dim: Dimension of the latent space (input noise vector).
+
+    Returns:
+        A TensorFlow Keras model representing the generator with specialized branches for
+        price and volume that exchange information.
+    """
+    input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
+
+    price_path = SplitLayer(0, 1)(input_layer)
+    volume_path = SplitLayer(1, 2)(input_layer)
+
+    # price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 128),
+                             return_sequences=True,
+                             activation=silu,
+                             kernel_regularizer=l2(0.01),
+                             kernel_initializer=RandomUniform(),
+                             name='LSTM_1_PricePath')(price_path)
+    price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
+    # price_path = layers.Dropout(0.5)(price_path)
+
+    # Volume path
+    # volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32),
+                              kernel_initializer=RandomUniform(),
+                              return_sequences=True,
+                              activation=layers.PReLU(),
+                              kernel_regularizer=l2(0.01),
+                              name='LSTM_1_VolumePath')(volume_path)
+    volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
+    # volume_path = layers.Dropout(0.5)(volume_path)
+
+    final_output = layers.Concatenate()([price_path, volume_path])
+    final_output = layers.Dense(2,
+                                activation=silu,
+                                kernel_regularizer=l2(0.01),
+                                kernel_initializer=GlorotUniform(),
+                                name='Final_Output')(final_output)
+
+    # Aplicar ReLU en la salida para asegurar no negatividad
+    final_output = layers.ReLU()(final_output)
     model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
 
@@ -105,28 +157,31 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
 
     # Price path
     price_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True, activation=silu,
-                             kernel_regularizer=l2(0.01))(price_path)
+                             kernel_regularizer=l2(0.01), name='LSTM_1_PricePath')(price_path)
     # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
     # price_path = layers.LSTM(int(size * 128))(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=silu)(price_path)
     price_path = layers.Dropout(0.5)(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
     price_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(price_path)
-    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=silu)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=silu, name='LSTM_2_PricePath')(
+        price_path)
     # price_path = layers.LSTM(int(size * 32), return_sequences=False)(price_path)
     price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
     price_path = BatchNormalization()(price_path)
 
     # Volume path
     volume_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True,
-                              activation=layers.PReLU(), kernel_regularizer=l2(0.01))(volume_path)
+                              activation=layers.PReLU(), kernel_regularizer=l2(0.01), name='LSTM_1_VolumePath')(
+        volume_path)
     # volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
     # volume_path = layers.LSTM(int(size * 128))(volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=layers.PReLU())(volume_path)
     volume_path = layers.Dropout(0.5)(volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
     volume_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(volume_path)
-    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=layers.PReLU())(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=layers.PReLU(),
+                              name='LSTM_2_VolumePath')(volume_path)
     # volume_path = layers.LSTM(int(size * 32), return_sequences=False)(volume_path)
     volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
     volume_path = BatchNormalization()(volume_path)
@@ -144,60 +199,54 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     return model
 
 
-# def build_gan(latent_dim: int = LATENT_DIM,
-#               dis_lr: float = DISCRIMINATOR_LEARNING_RATE,
-#               gen_lr: float = GENERATOR_LEARNING_RATE,
-#               loss_func: callable = least_squares_loss,
-#               metrics: callable = dtw_distance,
-#               ) -> Tuple[Model, Model, Model, Adam, Adam]:
-#     """
-#     Builds and compiles both the generator and discriminator to form the GAN.
-#     :param metrics: function to measure the distance between the distribution of generated data and real data.
-#     :param loss_func: function to measure the performance of a classification model.
-#     :param gen_lr: generator learning rate (default: constant GENERATOR_LEARNING_RATE)
-#     :param dis_lr: discriminator learning rate (default: constant DISCRIMINATOR_LEARNING_RATE)
-#     :param latent_dim: Dimension of the latent space.
-#     :return: A tuple containing the generator, discriminator, and the GAN model.
-#     :example: generator, discriminator, gan = build_gan(LATENT_DIM)
-#     """
-#     # Create and compile the generator and discriminator
-#     generator = build_generator(latent_dim)
-#     discriminator = build_discriminator()
-#
-#     # Exponential decay of the learning rate
-#     lr_schedule = ExponentialDecay(
-#         initial_learning_rate=gen_lr,
-#         decay_steps=1000,
-#         decay_rate=0.96,
-#         staircase=True)
-#
-#     # Optimizers with a custom learning rate
-#     # gen_optimizer = Adam(learning_rate=lr_schedule, beta_1=BETA_1, beta_2=BETA_2)
-#     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2)
-#     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2)
-#
-#
-#     # Compile the discriminator
-#     discriminator.compile(loss=loss_func, optimizer=disc_optimizer, metrics=[BinaryCrossentropy()])
-#     # discriminator.compile(loss='binary_crossentropy', optimizer=disc_optimizer, metrics=['accuracy'])
-#
-#
-#     # Ensure the discriminator's weights are not updated during the GAN training
-#     discriminator.trainable = False
-#
-#     # Create and compile the GAN
-#     gan_input = layers.Input(shape=(None, latent_dim))
-#     fake_data = generator(gan_input)
-#
-#     # If the generator produces a list of outputs (price and volume), concatenate them
-#     combined_output = fake_data
-#
-#     gan_output = discriminator(combined_output)
-#     gan = models.Model(gan_input, gan_output, name="GAN")
-#     gan.compile(loss=loss_func, optimizer=gen_optimizer)
-#     discriminator.trainable = True
-#
-#     return generator, discriminator, gan, gen_optimizer, disc_optimizer
+def build_discriminator_simple(latent_dim: int = LATENT_DIM) -> Model:
+    """
+    Builds and returns the discriminator model with separate pathways for price and volume.
+
+    Args:
+        latent_dim: Dimension of the latent space.
+
+    Returns:
+        A TensorFlow Keras model representing the discriminator with separate pathways.
+    """
+    input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim))
+
+    price_path = SplitLayer(0, 1)(input_layer)
+    volume_path = SplitLayer(1, 2)(input_layer)
+
+    # Price path
+    # price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 128),
+                             return_sequences=True,
+                             activation=silu,
+                             kernel_regularizer=l2(0.01),
+                             kernel_initializer=GlorotUniform(),
+                             name='LSTM_1_PricePath')(price_path)
+    price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
+    # price_path = layers.Dropout(0.5)(price_path)
+
+    # Volume path
+    # volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32),
+                              kernel_initializer=HeNormal(),
+                              return_sequences=True,
+                              activation=layers.PReLU(),
+                              kernel_regularizer=l2(0.01),
+                              name='LSTM_1_VolumePath')(volume_path)
+    volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
+    # volume_path = layers.Dropout(0.5)(volume_path)
+
+    final_output = layers.Concatenate()([price_path, volume_path])
+
+    final_output = layers.Dense(1,
+                                activation='sigmoid',
+                                kernel_regularizer=l2(0.01),
+                                kernel_initializer=GlorotUniform(),
+                                name='Final_Output'
+                                )(final_output)
+
+    model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
+    return model
 
 
 def build_gan(latent_dim: int = LATENT_DIM,
@@ -216,8 +265,10 @@ def build_gan(latent_dim: int = LATENT_DIM,
     Returns:
         A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
     """
-    generator = build_generator(latent_dim)
-    discriminator = build_discriminator()
+    # generator = build_generator(latent_dim)
+    generator = build_generator_simple(latent_dim)
+    # discriminator = build_discriminator()
+    discriminator = build_discriminator_simple()
 
     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
