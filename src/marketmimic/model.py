@@ -85,6 +85,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
     final_output = layers.MultiHeadAttention(num_heads=3, key_dim=3)(final_price, final_volume, join_path)
     final_output = layers.Dense(2, activation=silu, name='Final_Output')(final_output)
 
+    final_output = layers.ReLU()(final_output)
     model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
 
@@ -156,45 +157,78 @@ def build_discriminator(latent_dim: int = LATENT_DIM) -> Model:
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    price_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True, activation=silu,
-                             kernel_regularizer=l2(0.01), name='LSTM_1_PricePath')(price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 32),
+                             kernel_initializer=HeNormal(),
+                             return_sequences=True,
+                             activation=silu,
+                             kernel_regularizer=l2(0.01),
+                             name='LSTM_1_PricePath')(price_path)
+
     # price_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(price_path, price_path)
     # price_path = layers.LSTM(int(size * 128))(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=silu)(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 4),
+                              kernel_initializer=HeNormal(),
+                              activation=silu,
+                              name='Dense_1_PricePath')(price_path)
     price_path = layers.Dropout(0.5)(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16),
+                              activation=silu,
+                              name='Dense_2_PricePath')(price_path)
     price_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(price_path)
-    price_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=silu, name='LSTM_2_PricePath')(
-        price_path)
+    price_path = layers.LSTM(int(GAN_SIZE * 16),
+                             return_sequences=True,
+                             activation=silu,
+                             name='LSTM_2_PricePath')(price_path)
     # price_path = layers.LSTM(int(size * 32), return_sequences=False)(price_path)
-    price_path = layers.Dense(int(GAN_SIZE * 16), activation=silu)(price_path)
-    price_path = BatchNormalization()(price_path)
+    price_path = layers.Dense(int(GAN_SIZE * 16),
+                              activation=silu,
+                              name='Dense_3_PricePath')(price_path)
+    price_path = BatchNormalization(name='BatchNorm_PricePath')(price_path)
 
     # Volume path
-    volume_path = layers.LSTM(int(GAN_SIZE * 32), kernel_initializer=HeNormal(), return_sequences=True,
-                              activation=layers.PReLU(), kernel_regularizer=l2(0.01), name='LSTM_1_VolumePath')(
-        volume_path)
+    volume_path = layers.LSTM(int(GAN_SIZE * 32),
+                              kernel_initializer=HeNormal(),
+                              return_sequences=True,
+                              activation=layers.PReLU(),
+                              kernel_regularizer=l2(0.01),
+                              name='LSTM_1_VolumePath')(volume_path)
     # volume_path = layers.MultiHeadAttention(num_heads=2, key_dim=1)(volume_path, volume_path)
     # volume_path = layers.LSTM(int(size * 128))(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 4), kernel_initializer=HeNormal(), activation=layers.PReLU())(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 4),
+                               kernel_initializer=HeNormal(),
+                               activation=layers.PReLU(),
+                               name='Dense_1_VolumePath')(volume_path)
     volume_path = layers.Dropout(0.5)(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 16),
+                               activation=layers.PReLU(),
+                               name='Dense_2_VolumePath')(volume_path)
     volume_path = layers.Reshape((-1, int(GAN_SIZE * 16)))(volume_path)
-    volume_path = layers.LSTM(int(GAN_SIZE * 16), return_sequences=True, activation=layers.PReLU(),
+    volume_path = layers.LSTM(int(GAN_SIZE * 16),
+                              return_sequences=True,
+                              activation=layers.PReLU(),
                               name='LSTM_2_VolumePath')(volume_path)
     # volume_path = layers.LSTM(int(size * 32), return_sequences=False)(volume_path)
-    volume_path = layers.Dense(int(GAN_SIZE * 16), activation=layers.PReLU())(volume_path)
-    volume_path = BatchNormalization()(volume_path)
+    volume_path = layers.Dense(int(GAN_SIZE * 16),
+                               activation=layers.PReLU(),
+                               name='Dense_3_VolumePath')(volume_path)
+    volume_path = BatchNormalization(name='BatchNorm_VolumePath')(volume_path)
 
     # MultiHeadAttention
-    combined_path = layers.MultiHeadAttention(num_heads=2, key_dim=int(GAN_SIZE * 16))(price_path, volume_path)
+    combined_path = layers.MultiHeadAttention(num_heads=2,
+                                              key_dim=int(GAN_SIZE * 16),
+                                              name='MultiHeadAttention_Price&VolumePath')(price_path, volume_path)
 
     # Asegurarse que sigue habiendo una dimensión temporal
-    combined_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16), activation=silu))(combined_path)
-    combined_path = layers.GlobalAveragePooling1D()(combined_path)
+    combined_path = layers.TimeDistributed(layers.Dense(int(GAN_SIZE * 16),
+                                                        activation=silu,
+                                                        name='TimeDistributed_CombinedPath'))(combined_path)
+    combined_path = layers.GlobalAveragePooling1D(name='GlobalAverage_CombinedPath')(combined_path)
 
-    final_output = layers.Dense(1, activation='sigmoid')(combined_path)
-
+    final_output = layers.Dense(1,
+                                activation='sigmoid',
+                                name='Dense_CombinedPath')(combined_path)
+    final_output = layers.Activation('sigmoid',
+                                     name='ActivationSigmoid')(final_output)
     model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
     return model
 
@@ -215,7 +249,7 @@ def build_discriminator_simple(latent_dim: int = LATENT_DIM) -> Model:
     volume_path = SplitLayer(1, 2)(input_layer)
 
     # Price path
-    # price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
+    price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001, name='BatchNorm_PricePath')(price_path)
     price_path = layers.LSTM(int(GAN_SIZE * 128),
                              return_sequences=True,
                              activation=silu,
@@ -223,10 +257,10 @@ def build_discriminator_simple(latent_dim: int = LATENT_DIM) -> Model:
                              kernel_initializer=GlorotUniform(),
                              name='LSTM_1_PricePath')(price_path)
     price_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(price_path)
-    # price_path = layers.Dropout(0.5)(price_path)
+    price_path = layers.Dropout(0.5, name='Dropout_PricePath')(price_path)
 
     # Volume path
-    # volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
+    volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001, name='BatchNorm_VolumePath')(volume_path)
     volume_path = layers.LSTM(int(GAN_SIZE * 32),
                               kernel_initializer=HeNormal(),
                               return_sequences=True,
@@ -234,17 +268,17 @@ def build_discriminator_simple(latent_dim: int = LATENT_DIM) -> Model:
                               kernel_regularizer=l2(0.01),
                               name='LSTM_1_VolumePath')(volume_path)
     volume_path = layers.BatchNormalization(momentum=0.99, epsilon=0.001)(volume_path)
-    # volume_path = layers.Dropout(0.5)(volume_path)
+    volume_path = layers.Dropout(0.5, name='Dropout_VolumePath')(volume_path)
 
-    final_output = layers.Concatenate()([price_path, volume_path])
+    final_output = layers.Concatenate(name='Concatenate_Price&Volume')([price_path, volume_path])
 
     final_output = layers.Dense(1,
-                                activation='sigmoid',
+                                # activation='sigmoid',
                                 kernel_regularizer=l2(0.01),
                                 kernel_initializer=GlorotUniform(),
                                 name='Final_Output'
                                 )(final_output)
-
+    final_output = layers.Activation('sigmoid')(final_output)
     model = models.Model(inputs=input_layer, outputs=final_output, name="Discriminator")
     return model
 
@@ -265,10 +299,10 @@ def build_gan(latent_dim: int = LATENT_DIM,
     Returns:
         A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
     """
-    # generator = build_generator(latent_dim)
-    generator = build_generator_simple(latent_dim)
-    # discriminator = build_discriminator()
-    discriminator = build_discriminator_simple()
+    generator = build_generator(latent_dim)
+    # generator = build_generator_simple(latent_dim)
+    discriminator = build_discriminator()
+    # discriminator = build_discriminator_simple()
 
     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
     disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
