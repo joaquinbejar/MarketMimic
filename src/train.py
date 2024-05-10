@@ -16,11 +16,11 @@ if __name__ == '__main__':
     txt_file = 'AAPL-Tick-Standard.txt'
 
     # Load data
-    # df = load_data(zip_file, txt_file)
-    # df = join_date_time(df, 'Date', 'Time')
+    df = load_data(zip_file, txt_file)
+    df = join_date_time(df, 'Date', 'Time')
     # df = df.iloc[:100]
 
-    df = generate_market_data_from_func(1000000)
+    # df = generate_market_data_from_func(1000000)
 
     print(f'Original data shape: {df.shape}')
     print(df.sample(15))
