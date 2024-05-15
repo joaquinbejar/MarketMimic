@@ -62,13 +62,3 @@ test:		## Run tests
 	pip install pytest mockito coverage freezegun pytest-cov
 	pip install .[tests]
 	coverage run --source=src -m pytest tests/unit/ && coverage report -m
-
-
-test_unittest:		## Run tests
-	pip install mockito freezegun coverage
-	pip install .[tests]
-	coverage erase
-	PYTHONDONTWRITEBYTECODE=1 coverage run --source=src/marketmimic/ -m unittest discover -s tests/unit/ -p "test_*.py"
-	coverage report -m
-
-
