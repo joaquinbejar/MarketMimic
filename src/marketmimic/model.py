@@ -356,8 +356,10 @@ def build_gan(latent_dim: int = LATENT_DIM,
     discriminator = build_discriminator()
     # discriminator = build_discriminator_simple()
 
-    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
-    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    # gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    gen_optimizer = Adam(learning_rate=gen_lr)
+    # disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    disc_optimizer = Adam(learning_rate=dis_lr)
 
     # Ensure the discriminator's weights are not updated during the GAN model usage
     discriminator.trainable = False

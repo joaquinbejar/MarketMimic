@@ -37,8 +37,12 @@ if __name__ == '__main__':
     # Train GAN
     # Calculate time to train
     start = time.time()
-    train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-              data_scaled, epochs=EPOCHS, batch_size=BATCH_SIZE)
+    try:
+        train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
+                  data_scaled, epochs=EPOCHS, batch_size=BATCH_SIZE)
+    except KeyboardInterrupt:
+        print("Training interrupted!")
+        exit(0)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")
 
