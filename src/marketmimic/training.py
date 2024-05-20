@@ -55,8 +55,8 @@ def train_gan(generator: Model, discriminator: Model,
                 real_output = discriminator(batch_data, training=True)
                 fake_output = discriminator(fake_data, training=True)
 
-                real_labels = tf.ones_like(real_output)
-                fake_labels = tf.zeros_like(fake_output)
+                real_labels = tf.ones_like(real_output) * 0.9
+                fake_labels = tf.zeros_like(fake_output) + 0.1
 
                 disc_loss = tf.reduce_mean(tf.losses.binary_crossentropy(real_labels, real_output) +
                                            tf.losses.binary_crossentropy(fake_labels, fake_output))

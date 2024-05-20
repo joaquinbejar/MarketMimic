@@ -1,6 +1,7 @@
 from typing import Tuple
 
 import numpy as np
+from tensorflow.keras import initializers
 from tensorflow.keras import layers, models, Model
 from tensorflow.keras.activations import silu
 from tensorflow.keras.initializers import HeNormal, RandomUniform, GlorotUniform
@@ -131,7 +132,7 @@ def build_generator(latent_dim: int = LATENT_DIM) -> models.Model:
                                           name='TimeDistributed_CombinedPath')(final_output)
 
     final_output = layers.Dense(2,
-                                activation=silu,
+                                activation='sigmoid',
                                 name='FinalOutput')(final_output)
 
     final_output = layers.ReLU(name='ActivationReLU')(final_output)
@@ -179,13 +180,61 @@ def build_generator_simple(latent_dim: int = LATENT_DIM) -> models.Model:
 
     final_output = layers.Concatenate()([price_path, volume_path])
     final_output = layers.Dense(2,
-                                activation=silu,
+                                activation='sigmoid',
                                 kernel_regularizer=l2(0.01),
                                 kernel_initializer=GlorotUniform(),
                                 name='Final_Output')(final_output)
 
     # Aplicar ReLU en la salida para asegurar no negatividad
     final_output = layers.ReLU()(final_output)
+    model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
+    return model
+
+
+def build_generator_gru(latent_dim: int = LATENT_DIM) -> models.Model:
+    """
+    Builds and returns a generator model for time series data using LSTM and Conv1D layers,
+    with intermediate cross-communication between the two branches for price and volume features.
+
+    Args:
+        latent_dim: Dimension of the latent space (input noise vector).
+        seq_length: Length of the input sequences.
+        feature_dim: Number of features in the output data (e.g., OHLC).
+
+    Returns:
+        A TensorFlow Keras model representing the generator.
+    """
+    input_layer = layers.Input(shape=(SEQUENCE_LENGTH, latent_dim), name='InputLayer_Generator')
+
+    # Initial LSTM layers for price and volume paths
+    price_path = layers.LSTM(64, return_sequences=True, kernel_initializer=initializers.HeNormal(),
+                             name='LSTM_PricePath')(input_layer)
+    volume_path = layers.LSTM(64, return_sequences=True, kernel_initializer=initializers.HeNormal(),
+                              name='LSTM_VolumePath')(input_layer)
+
+    # Concatenate the LSTM outputs
+    combined_path = layers.Concatenate(name='Concatenate_PriceVolume')([price_path, volume_path])
+
+    # Conv1D layers to capture local patterns
+    combined_path = layers.Conv1D(64, kernel_size=3, padding='same', activation='relu',
+                                  kernel_initializer=initializers.HeNormal(), name='Conv1D_1')(combined_path)
+    combined_path = layers.Conv1D(64, kernel_size=3, padding='same', activation='relu',
+                                  kernel_initializer=initializers.HeNormal(), name='Conv1D_2')(combined_path)
+    combined_path = layers.BatchNormalization(name='BatchNorm_CombinedPath')(combined_path)
+
+    # Attention mechanism to focus on relevant parts of the sequence
+    attention_output = layers.MultiHeadAttention(num_heads=4, key_dim=32, name='MultiHeadAttention')(combined_path,
+                                                                                                     combined_path)
+
+    # More LSTM layers to capture long-term dependencies
+    lstm_output = layers.LSTM(64, return_sequences=True, kernel_initializer=initializers.HeNormal(), name='LSTM_Final')(
+        attention_output)
+
+    # TimeDistributed layer to apply the same dense transformation at each time step
+    final_output = layers.TimeDistributed(
+        layers.Dense(2, activation='sigmoid', kernel_initializer=initializers.GlorotUniform()),
+        name='TimeDistributed_Output')(lstm_output)
+
     model = models.Model(inputs=input_layer, outputs=final_output, name="Generator")
     return model
 
@@ -352,14 +401,13 @@ def build_gan(latent_dim: int = LATENT_DIM,
         A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
     """
     generator = build_generator(latent_dim)
+    # generator = build_generator_gru(latent_dim)
     # generator = build_generator_simple(latent_dim)
-    discriminator = build_discriminator()
-    # discriminator = build_discriminator_simple()
+    # discriminator = build_discriminator()
+    discriminator = build_discriminator_simple()
 
-    # gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
-    gen_optimizer = Adam(learning_rate=gen_lr)
-    # disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
-    disc_optimizer = Adam(learning_rate=dis_lr)
+    gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
 
     # Ensure the discriminator's weights are not updated during the GAN model usage
     discriminator.trainable = False
