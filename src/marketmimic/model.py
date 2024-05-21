@@ -198,8 +198,6 @@ def build_generator_gru(latent_dim: int = LATENT_DIM) -> models.Model:
 
     Args:
         latent_dim: Dimension of the latent space (input noise vector).
-        seq_length: Length of the input sequences.
-        feature_dim: Number of features in the output data (e.g., OHLC).
 
     Returns:
         A TensorFlow Keras model representing the generator.
@@ -416,7 +414,7 @@ def build_gan(latent_dim: int = LATENT_DIM,
     gan_output = discriminator(fake_data)
     gan = models.Model(gan_input, gan_output, name="GAN")
 
-    # Restore trainability if needed elsewhere
+    # Restore train ability if needed elsewhere
     discriminator.trainable = True
 
     return generator, discriminator, gan, gen_optimizer, disc_optimizer

@@ -1,5 +1,7 @@
-import tensorflow as tf
 import unittest
+
+import tensorflow as tf
+
 
 class TestGPU(unittest.TestCase):
     def test_if_available(self):
@@ -13,6 +15,7 @@ class TestGPU(unittest.TestCase):
         c = tf.matmul(a, tf.transpose(b))
 
         print(c)
+
 
 if __name__ == '__main__':
     unittest.main()

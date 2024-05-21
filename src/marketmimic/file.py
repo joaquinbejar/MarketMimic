@@ -13,7 +13,8 @@ def load_model_from_file(path: str, loss_function: callable, metric: Optional[ca
 
     Args:
         path (str): The path from where to load the model.
-        :param loss_function: 
+        loss_function (callable): The loss function used to compile the model.
+        metric (callable): The metric function used to compile the model. Default is None.
     Returns:
         Model: The loaded TensorFlow/Keras model.
 

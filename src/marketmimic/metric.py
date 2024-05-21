@@ -1,31 +1,35 @@
+from math import sqrt
+
 import numpy as np
 import tensorflow as tf
+from fastdtw import fastdtw
+from scipy.linalg import sqrtm
+from scipy.spatial.distance import euclidean
+from sklearn.metrics import mean_absolute_error
+from sklearn.metrics import mean_squared_error
 from tensorflow.keras.applications.inception_v3 import InceptionV3
 from tensorflow.keras.applications.inception_v3 import preprocess_input
 from tensorflow.keras.metrics import Precision, Recall
-from scipy.linalg import sqrtm
 
-from sklearn.metrics import mean_squared_error
-from math import sqrt
-from sklearn.metrics import mean_absolute_error
-from fastdtw import fastdtw
-from scipy.spatial.distance import euclidean
-import numpy as np
 
 def pearson_correlation(real_data, generated_data):
     if real_data.shape != generated_data.shape:
         raise ValueError("Shapes of real_data and generated_data must match.")
     return np.corrcoef(real_data, generated_data)[0, 1]
 
+
 def dtw_distance(series1, series2):
     distance, path = fastdtw(series1, series2, dist=euclidean)
     return distance
 
+
 def mae(real_data, generated_data):
     return mean_absolute_error(real_data, generated_data)
 
+
 def mse(real_data, generated_data):
     return mean_squared_error(real_data, generated_data)
+
 
 def rmse(real_data, generated_data):
     return sqrt(mse(real_data, generated_data))
@@ -50,7 +54,8 @@ class F1Score(tf.keras.metrics.Metric):
         self.precision.reset_states()
         self.recall.reset_states()
 
-    def __name__(self):
+    @staticmethod
+    def __name__():
         return 'f1_score'
 
 
@@ -79,7 +84,6 @@ def inception_score(images, batch_size=32, resize=False, splits=1):
     return np.mean(split_scores), np.std(split_scores)
 
 
-
 def calculate_fid(act1, act2):
     """ Calculate the FID score between two activations """
     mu1, sigma1 = act1.mean(axis=0), np.cov(act1, rowvar=False)
@@ -94,6 +98,7 @@ def calculate_fid(act1, act2):
     fid = ssdiff + np.trace(sigma1 + sigma2 - 2.0 * covmean)
     return fid
 
+
 def frechet_inception_distance(real_images, generated_images):
     model = InceptionV3(include_top=False, pooling='avg', input_shape=(299, 299, 3))
 
@@ -102,5 +107,3 @@ def frechet_inception_distance(real_images, generated_images):
 
     fid_value = calculate_fid(act1, act2)
     return fid_value
-
-

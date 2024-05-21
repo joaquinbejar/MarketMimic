@@ -1,5 +1,6 @@
-from tensorflow import reduce_mean, Tensor, maximum, reduce_sum, math ,sqrt, square, float32, convert_to_tensor
+from tensorflow import reduce_mean, Tensor, maximum, reduce_sum, math, sqrt, square, float32, convert_to_tensor
 from tensorflow.keras.losses import binary_crossentropy
+
 
 def wasserstein_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
@@ -19,6 +20,7 @@ def wasserstein_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     return reduce_mean(y_true * y_pred)
 
+
 def binary_cross_entropy_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     Calculates the binary cross entropy loss, commonly used for training GANs.
@@ -36,6 +38,7 @@ def binary_cross_entropy_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     return binary_crossentropy(y_true, y_pred)
 
+
 def hinge_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     Hinge loss for training GANs. It is particularly useful for "GANs with hinge loss" which
@@ -49,6 +52,7 @@ def hinge_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
         Tensor: The computed hinge loss.
     """
     return reduce_mean(maximum(0., 1. - y_true * y_pred))
+
 
 def least_squares_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
@@ -64,6 +68,7 @@ def least_squares_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     return reduce_mean((y_true - y_pred) ** 2)
 
+
 def kl_divergence_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
     Calculates the Kullback-Leibler divergence loss for a batch of predictions. This loss
@@ -77,6 +82,7 @@ def kl_divergence_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
         Tensor: The computed KL divergence loss.
     """
     return reduce_sum(y_true * math.log(y_true / (y_pred + 1e-8)), axis=1)
+
 
 def pearson_correlation_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     """
@@ -96,5 +102,5 @@ def pearson_correlation_loss(y_true: Tensor, y_pred: Tensor) -> Tensor:
     y_true_centered = y_true - y_true_mean
     y_pred_centered = y_pred - y_pred_mean
     correlation = reduce_sum(y_true_centered * y_pred_centered) / (
-        sqrt(reduce_sum(square(y_true_centered))) * sqrt(reduce_sum(square(y_pred_centered))) + 1e-8)
+            sqrt(reduce_sum(square(y_true_centered))) * sqrt(reduce_sum(square(y_pred_centered))) + 1e-8)
     return convert_to_tensor(-correlation, dtype=float32)
