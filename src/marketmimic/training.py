@@ -107,7 +107,9 @@ def train_gan(generator: Model, discriminator: Model,
 
             if idx % SHOW_LOSS_EVERY == 0:
                 print(
-                    f"Epoch {epoch + 1}/{epochs} Batch {idx // batch_size + 1}/{(sequence_data.shape[0] + batch_size - 1) // batch_size}: Disc Loss = {disc_loss.numpy()}, Gen Loss = {gen_loss.numpy()}")
+                    f"Epoch {epoch + 1}/{epochs} Batch {idx // batch_size + 1}/"
+                    f"{(sequence_data.shape[0] + batch_size - 1) // batch_size}: "
+                    f"Disc Loss = {disc_loss.numpy()}, Gen Loss = {gen_loss.numpy()}")
 
             # Update the best loss and save weights
             total_loss = disc_loss + gen_loss

@@ -23,6 +23,9 @@ class SplitLayer(layers.Layer):
     def call(self, inputs):
         return inputs[:, :, self.index_start:self.index_end]
 
+    def __call__(self, *args, **kwargs):
+        return super(SplitLayer, self).__call__(*args, **kwargs)
+
     def get_config(self):
         config = super(SplitLayer, self).get_config()
         config.update({
@@ -396,7 +399,8 @@ def build_gan(latent_dim: int = LATENT_DIM,
         dis_lr: Discriminator learning rate.
 
     Returns:
-        A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
+        A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both
+        generator and discriminator.
     """
     generator = build_generator(latent_dim)
     # discriminator = build_discriminator()

@@ -65,8 +65,8 @@ def inception_score(images, batch_size=32, resize=False, splits=1):
 
     def get_preds(x):
         x = preprocess_input(x)
-        preds = model.predict(x, batch_size=batch_size)
-        return preds
+        _preds = model.predict(x, batch_size=batch_size)
+        return _preds
 
     # If the images are not (299, 299, 3), they need to be resized.
     if resize:

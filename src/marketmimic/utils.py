@@ -213,8 +213,10 @@ def plot_ohlcv(df_ohlcv: pd.DataFrame):
     mpf.show()
 
 
-def generate_volume_data_from_func(num_points: int, frequency: float = 10, amplitude: float = 4, phase: float = 100) -> \
-        List[int]:
+def generate_volume_data_from_func(num_points: int,
+                                   frequency: float = 10,
+                                   amplitude: float = 4,
+                                   phase: float = 100) -> List[int]:
     """
     Generate synthetic data based on a sine function.
 
@@ -233,7 +235,6 @@ def generate_volume_data_from_func(num_points: int, frequency: float = 10, ampli
     # x_values = np.arange(0, num_points)
 
     # Generate y values based on sine function
-    # y_values = amplitude * amplitude * (np.sin(frequency * x_values + phase) + np.cos(frequency * x_values + phase) + (x_values * np.sin(frequency * x_values + phase))) + phase
     y_values = np.cos(frequency * x_values + phase) * frequency * amplitude
     y_values = y_values + y_values.min() + phase
 
@@ -263,10 +264,8 @@ def generate_price_data_from_func(num_points: int, frequency: float = 10, amplit
     """
     # Generate x values
     x_values = np.linspace(0, 2 * np.pi, num_points)
-    # x_values = np.arange(0, num_points)
 
     # Generate y values based on sine function
-    # y_values = amplitude * x_values  + amplitude * np.sin(frequency * x_values + phase)
     y_values = np.sin(frequency * x_values + phase) * amplitude
     y_values = y_values + y_values.min() + phase
 
@@ -277,9 +276,6 @@ def generate_price_data_from_func(num_points: int, frequency: float = 10, amplit
     # y_values = np.round(y_values / 10) * 10
 
     return list(y_values.astype(float))
-
-
-import pandas as pd
 
 
 def generate_market_data_from_func(num_points: int) -> pd.DataFrame:
