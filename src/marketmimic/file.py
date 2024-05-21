@@ -5,22 +5,23 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import load_model
 
 from marketmimic.constants import GAN_ARCH_VERSION
-from tensorflow.keras.metrics import MeanSquaredError, MeanAbsoluteError, RootMeanSquaredError
 
-def load_model_from_file(path: str, loss_funcion: callable, metric: Optional[callable] = None) -> Model:
+
+def load_model_from_file(path: str, loss_function: callable, metric: Optional[callable] = None) -> Model:
     """
     Loads a TensorFlow/Keras model from a specified path.
 
     Args:
         path (str): The path from where to load the model.
-
+        :param loss_function: 
     Returns:
         Model: The loaded TensorFlow/Keras model.
+
     """
     if metric is None:
-        model = load_model(path, custom_objects={loss_funcion.__name__: loss_funcion})
+        model = load_model(path, custom_objects={loss_function.__name__: loss_function})
     else:
-        model = load_model(path, custom_objects={loss_funcion.__name__: loss_funcion, 'MeanSquaredError': metric})
+        model = load_model(path, custom_objects={loss_function.__name__: loss_function, 'MeanSquaredError': metric})
     print(f"Model loaded from {path}")
     return model
 
@@ -104,9 +105,9 @@ def load_models(
         Tuple[Model, Model, Model]: The loaded generator, discriminator, and GAN models.
     """
     # Load from file
-    generator = load_model_from_file(path + generator_filename, loss_funcion=loss_func)
-    discriminator = load_model_from_file(path + discriminator_filename, loss_funcion=loss_func, metric=metrics_func)
-    gan = load_model_from_file(path + gan_filename, loss_funcion=loss_func, metric=metrics_func)
+    generator = load_model_from_file(path + generator_filename, loss_function=loss_func)
+    discriminator = load_model_from_file(path + discriminator_filename, loss_function=loss_func, metric=metrics_func)
+    gan = load_model_from_file(path + gan_filename, loss_function=loss_func, metric=metrics_func)
     # discriminator = Model()
 
     return generator, discriminator, gan

@@ -5,17 +5,18 @@ from tensorflow.keras.models import Model
 from marketmimic.constants import SEQUENCE_LENGTH, SHOW_LOSS_EVERY, SMOOTH_FACTOR
 from marketmimic.data import create_sliding_windows
 
+
 def reinitialize_weights(model):
     for layer in model.layers:
-        # Re-inicializar los pesos para capas densas
+        # Reinitialize the weights for dense layers
         if hasattr(layer, 'kernel_initializer') and hasattr(layer, 'kernel'):
             layer.kernel.assign(layer.kernel_initializer(shape=layer.kernel.shape))
 
-        # Re-inicializar los sesgos si la capa los usa
+        # Reinitialize biases if the layer uses them
         if hasattr(layer, 'bias_initializer') and hasattr(layer, 'bias') and layer.use_bias:
             layer.bias.assign(layer.bias_initializer(shape=layer.bias.shape))
 
-        # Específico para capas LSTM o RNN
+        # Specific for LSTM or RNN layers
         if isinstance(layer, tf.keras.layers.LSTM) or isinstance(layer, tf.keras.layers.RNN):
             # Peso de las entradas
             if hasattr(layer, 'cell'):
@@ -24,7 +25,8 @@ def reinitialize_weights(model):
 
                 # Peso recurrente
                 if hasattr(layer.cell, 'recurrent_initializer') and hasattr(layer.cell, 'recurrent_kernel'):
-                    layer.cell.recurrent_kernel.assign(layer.cell.recurrent_initializer(shape=layer.cell.recurrent_kernel.shape))
+                    layer.cell.recurrent_kernel.assign(
+                        layer.cell.recurrent_initializer(shape=layer.cell.recurrent_kernel.shape))
 
                 # Sesgo
                 if hasattr(layer.cell, 'bias_initializer') and hasattr(layer.cell, 'bias'):
@@ -35,6 +37,18 @@ def train_gan(generator: Model, discriminator: Model,
               gen_optimizer: tf.keras.optimizers.Optimizer,
               disc_optimizer: tf.keras.optimizers.Optimizer,
               dataset: np.ndarray, epochs: int, batch_size: int) -> None:
+    """
+    Train the GAN model.
+
+    :param generator:  The generator model.
+    :param discriminator: The discriminator model.
+    :param gen_optimizer: The optimizer for the generator.
+    :param disc_optimizer: The optimizer for the discriminator.
+    :param dataset: The input dataset for training.
+    :param epochs: The number of epochs to train the GAN.
+    :param batch_size: The batch size for training.
+    :return: None
+    """
     sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
     best_loss = float('inf')
     weights_found = False
@@ -72,7 +86,6 @@ def train_gan(generator: Model, discriminator: Model,
                     reinitialize_weights(generator)
                     reinitialize_weights(discriminator)
 
-
                 # Optionally reduce learning rate here
                 gen_current_lr = gen_optimizer.learning_rate.numpy()
                 new_lr = gen_current_lr * SMOOTH_FACTOR
@@ -93,16 +106,16 @@ def train_gan(generator: Model, discriminator: Model,
             disc_optimizer.apply_gradients(zip(gradients_of_discriminator, discriminator.trainable_variables))
 
             if idx % SHOW_LOSS_EVERY == 0:
-                print(f"Epoch {epoch + 1}/{epochs} Batch {idx // batch_size + 1}/{(sequence_data.shape[0] + batch_size - 1) // batch_size}: Disc Loss = {disc_loss.numpy()}, Gen Loss = {gen_loss.numpy()}")
+                print(
+                    f"Epoch {epoch + 1}/{epochs} Batch {idx // batch_size + 1}/{(sequence_data.shape[0] + batch_size - 1) // batch_size}: Disc Loss = {disc_loss.numpy()}, Gen Loss = {gen_loss.numpy()}")
 
-            # Update best loss and save weights
+            # Update the best loss and save weights
             total_loss = disc_loss + gen_loss
             if total_loss < best_loss:
                 best_loss = total_loss
                 best_weights_gen = generator.get_weights()
                 best_weights_disc = discriminator.get_weights()
                 weights_found = True
-
 
 
 def train_gan_fit(gan: Model, dataset: np.ndarray, epochs: int, batch_size: int) -> None:
@@ -117,11 +130,11 @@ def train_gan_fit(gan: Model, dataset: np.ndarray, epochs: int, batch_size: int)
     """
     sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
 
-    # Generamos ruido aleatorio como entrada al generador
+    # Generate random noise as input to the generator
     noise = np.random.normal(0, 1, (len(sequence_data), SEQUENCE_LENGTH, 2))
 
-    # Las etiquetas para el GAN deben ser consistentes con lo que el discriminador espera para "datos falsos"
-    # generalmente esto es '1' para todos los datos generados ya que queremos engañar al discriminador
+    # The labels for the GAN should be consistent with what the discriminator expects for "fake data"
+    # usually this is '1' for all generated data as we want to fool the discriminator
     fake_y = np.ones((len(sequence_data), 1), dtype=np.float32)
 
     gan.fit(x=noise, y=fake_y, epochs=epochs, batch_size=batch_size, shuffle=True)

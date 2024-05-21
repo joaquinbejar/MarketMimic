@@ -7,8 +7,10 @@ from marketmimic.training import train_gan
 from marketmimic.utils import generate_market_data_from_func, load_data, join_date_time
 
 if __name__ == '__main__':
-    zip_file = '../data/AAPL-Tick-Standard.txt.zip'
-    txt_file = 'AAPL-Tick-Standard.txt'
+    # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
+    # txt_file = 'AAPL-Tick-Standard.txt'
+    zip_file = '../data/TSLA-Tick-Standard.txt.zip'
+    txt_file = 'TSLA-Tick-Standard.txt'
 
     # Load data
     df = load_data(zip_file, txt_file)
@@ -34,6 +36,6 @@ if __name__ == '__main__':
     start = time.time()
     # Train GAN
     train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-              data_scaled, epochs=2, batch_size=1024)
+              data_scaled, epochs=3, batch_size=2048)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")

@@ -401,8 +401,6 @@ def build_gan(latent_dim: int = LATENT_DIM,
         A tuple containing the generator, discriminator, and the GAN model, along with the optimizers for both generator and discriminator.
     """
     generator = build_generator(latent_dim)
-    # generator = build_generator_gru(latent_dim)
-    # generator = build_generator_simple(latent_dim)
     # discriminator = build_discriminator()
     discriminator = build_discriminator_simple()
 
