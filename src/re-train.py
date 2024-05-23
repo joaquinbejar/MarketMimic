@@ -1,5 +1,6 @@
 import time
 
+from marketmimic.constants import BATCH_SIZE, EPOCHS
 from marketmimic.data import prepare_data
 from marketmimic.metric import *
 from marketmimic.model import build_gan
@@ -42,8 +43,8 @@ if __name__ == '__main__':
               gen_optimizer,
               disc_optimizer,
               data_scaled,
-              epochs=3,
-              batch_size=2,
+              epochs=EPOCHS,
+              batch_size=BATCH_SIZE,
               reset_weights=False)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")
