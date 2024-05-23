@@ -4,7 +4,7 @@ from marketmimic.data import prepare_data
 from marketmimic.metric import *
 from marketmimic.model import build_gan
 from marketmimic.training import train_gan
-from marketmimic.utils import generate_market_data_from_func, load_data, join_date_time
+from marketmimic.utils import load_data, join_date_time
 
 if __name__ == '__main__':
     # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
@@ -24,7 +24,9 @@ if __name__ == '__main__':
                                      discriminator=discriminator)
 
     path = '../models/v0.1'
-    manager = tf.train.CheckpointManager(checkpoint, directory=path, max_to_keep=5)
+    manager = tf.train.CheckpointManager(checkpoint,
+                                         directory=path,
+                                         max_to_keep=5)
     checkpoint.restore(manager.latest_checkpoint)
     if manager.latest_checkpoint:
         print("Restaurado de {}".format(manager.latest_checkpoint))
@@ -35,7 +37,13 @@ if __name__ == '__main__':
     data_scaled, _ = prepare_data(df)
     start = time.time()
     # Train GAN
-    train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-              data_scaled, epochs=3, batch_size=2)
+    train_gan(generator,
+              discriminator,
+              gen_optimizer,
+              disc_optimizer,
+              data_scaled,
+              epochs=3,
+              batch_size=2,
+              reset_weights=False)
     end = time.time()
     print(f"Time to train: {end - start:.2f}")

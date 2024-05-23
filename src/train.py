@@ -9,7 +9,7 @@ from marketmimic.data import prepare_data, inverse_scale_data, invert_sliding_wi
 from marketmimic.metric import *
 from marketmimic.model import build_gan, generate_data
 from marketmimic.training import train_gan
-from marketmimic.utils import generate_market_data_from_func, load_data, join_date_time
+from marketmimic.utils import load_data, join_date_time
 
 if __name__ == '__main__':
     # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
@@ -40,8 +40,14 @@ if __name__ == '__main__':
     # Calculate time to train
     start = time.time()
     try:
-        train_gan(generator, discriminator, gen_optimizer, disc_optimizer,
-                  data_scaled, epochs=EPOCHS, batch_size=BATCH_SIZE)
+        train_gan(generator,
+                  discriminator,
+                  gen_optimizer,
+                  disc_optimizer,
+                  data_scaled,
+                  epochs=EPOCHS,
+                  batch_size=BATCH_SIZE,
+                  reset_weights=True)
     except KeyboardInterrupt:
         print("Training interrupted!")
         exit(0)

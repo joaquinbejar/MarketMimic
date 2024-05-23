@@ -2,7 +2,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Model
 
-from marketmimic.constants import SEQUENCE_LENGTH, SHOW_LOSS_EVERY, SMOOTH_FACTOR
+from marketmimic.constants import SEQUENCE_LENGTH, SHOW_LOSS_EVERY, SMOOTH_FACTOR, SMOOTH_REAL_LABEL, SMOOTH_FAKE_LABEL
 from marketmimic.data import create_sliding_windows
 
 
@@ -36,7 +36,10 @@ def reinitialize_weights(model):
 def train_gan(generator: Model, discriminator: Model,
               gen_optimizer: tf.keras.optimizers.Optimizer,
               disc_optimizer: tf.keras.optimizers.Optimizer,
-              dataset: np.ndarray, epochs: int, batch_size: int) -> None:
+              dataset: np.ndarray,
+              epochs: int,
+              batch_size: int,
+              reset_weights=False) -> None:
     """
     Train the GAN model.
 
@@ -52,8 +55,9 @@ def train_gan(generator: Model, discriminator: Model,
     sequence_data = create_sliding_windows(dataset, SEQUENCE_LENGTH)
     best_loss = float('inf')
     weights_found = False
-    reinitialize_weights(generator)
-    reinitialize_weights(discriminator)
+    if reset_weights:
+        reinitialize_weights(generator)
+        reinitialize_weights(discriminator)
     best_weights_gen = generator.get_weights()
     best_weights_disc = discriminator.get_weights()
 
@@ -69,8 +73,8 @@ def train_gan(generator: Model, discriminator: Model,
                 real_output = discriminator(batch_data, training=True)
                 fake_output = discriminator(fake_data, training=True)
 
-                real_labels = tf.ones_like(real_output) * 0.9
-                fake_labels = tf.zeros_like(fake_output) + 0.1
+                real_labels = tf.ones_like(real_output) * SMOOTH_REAL_LABEL
+                fake_labels = tf.zeros_like(fake_output) + SMOOTH_FAKE_LABEL
 
                 disc_loss = tf.reduce_mean(tf.losses.binary_crossentropy(real_labels, real_output) +
                                            tf.losses.binary_crossentropy(fake_labels, fake_output))

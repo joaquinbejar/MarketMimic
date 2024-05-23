@@ -6,11 +6,11 @@ from tensorflow.keras import layers, models, Model
 from tensorflow.keras.activations import silu
 from tensorflow.keras.initializers import HeNormal, RandomUniform, GlorotUniform
 from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.regularizers import l2
 
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
-    BETA_1, BETA_2, GAN_SIZE
+    BETA_1, BETA_2, GAN_SIZE, SGD_MOMENTUM
 from marketmimic.metric import *
 
 
@@ -407,7 +407,8 @@ def build_gan(latent_dim: int = LATENT_DIM,
     discriminator = build_discriminator_simple()
 
     gen_optimizer = Adam(learning_rate=gen_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
-    disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    # disc_optimizer = Adam(learning_rate=dis_lr, beta_1=BETA_1, beta_2=BETA_2, clipvalue=1.0)
+    disc_optimizer = SGD(learning_rate=dis_lr, momentum=SGD_MOMENTUM, clipvalue=1.0)
 
     # Ensure the discriminator's weights are not updated during the GAN model usage
     discriminator.trainable = False
