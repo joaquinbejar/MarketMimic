@@ -10,8 +10,8 @@ from marketmimic.utils import load_data, join_date_time
 if __name__ == '__main__':
     # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
     # txt_file = 'AAPL-Tick-Standard.txt'
-    zip_file = '../data/AMZN-Tick-Standard.txt.zip'
-    txt_file = 'AMZN-Tick-Standard.txt'
+    zip_file = '../data/AAPL-Tick-Standard.txt.zip'
+    txt_file = 'AAPL-Tick-Standard.txt'
 
     # Load data
     df = load_data(zip_file, txt_file)
