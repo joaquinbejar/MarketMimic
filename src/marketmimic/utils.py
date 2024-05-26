@@ -1,3 +1,4 @@
+import os
 import random
 import warnings
 import zipfile
@@ -8,6 +9,28 @@ import matplotlib.pyplot as plt
 import mplfinance as mpf
 import numpy as np
 import pandas as pd
+
+
+def process_zip_files(directory):
+    """
+    Iterates over all .zip files in the given directory and calls load_data
+    with the names of the zip file and the internal .txt file.
+
+    Parameters:
+    directory (str): The path to the directory containing the .zip files.
+
+    Yields:
+    DataFrame: The loaded data from each .txt file inside the .zip files.
+    """
+    for filename in sorted(os.listdir(directory)):
+        if filename.endswith(".zip"):
+            zip_file_path = os.path.join(directory, filename)
+            with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                for file in zip_ref.namelist():
+                    if file.endswith(".txt"):
+                        df = load_data(zip_file_path, file)
+                        print(f"Processed {file} in {filename}")
+                        yield df
 
 
 def load_data(zip_file: str, txt_file: str) -> pd.DataFrame:
