@@ -27,7 +27,7 @@ def process_zip_files(directory):
             zip_file_path = os.path.join(directory, filename)
             with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
                 for file in zip_ref.namelist():
-                    if file.endswith(".txt"):
+                    if file == filename[:-4]:
                         df = load_data(zip_file_path, file)
                         print(f"Processed {file} in {filename}")
                         yield df
