@@ -9,20 +9,20 @@ from marketmimic.data import prepare_data, inverse_scale_data, invert_sliding_wi
 from marketmimic.metric import *
 from marketmimic.model import build_gan, generate_data
 from marketmimic.training import train_gan
-from marketmimic.utils import load_data, join_date_time
+from marketmimic.utils import load_data, join_date_time, generate_market_data_from_func
 
 if __name__ == '__main__':
     # zip_file = '../data/AAPL-Tick-Standard.txt.zip'
     # txt_file = 'AAPL-Tick-Standard.txt'
-    zip_file = '../data/TSLA-Tick-Standard.txt.zip'
-    txt_file = 'TSLA-Tick-Standard.txt'
+    # zip_file = '../data/TSLA-Tick-Standard.txt.zip'
+    # txt_file = 'TSLA-Tick-Standard.txt'
 
     # Load data
-    df = load_data(zip_file, txt_file)
-    df = join_date_time(df, 'Date', 'Time')
+    # df = load_data(zip_file, txt_file)
+    # df = join_date_time(df, 'Date', 'Time')
     # df = df.iloc[:100]
 
-    # df = generate_market_data_from_func(1000000)
+    df = generate_market_data_from_func(1000000)
 
     print(f'Original data shape: {df.shape}')
     print(df.sample(15))
