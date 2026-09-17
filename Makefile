@@ -31,7 +31,7 @@ reinstall-dependencies: update-pip delete-dependencies install-dep clean
 
 update-pip:
 	python -m pip install --upgrade pip --no-cache-dir
-	python -m pip install pip~=23.2.1 --force-reinstall --no-cache-dir
+	python -m pip install pip~=26.0 --force-reinstall --no-cache-dir
 	pip install --upgrade pip
 
 delete-dependencies:

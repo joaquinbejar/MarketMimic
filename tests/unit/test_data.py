@@ -95,7 +95,8 @@ class TestFullData(unittest.TestCase):
         self.assertListEqual(list(original_data.columns), ['Price', 'Volume'])
         self.assertTrue((original_data.index == self.df.index).all())
         self.assertEqual(len(original_data), len(self.df))
-        self.assertTrue((original_data.Price.values == self.df.Price.values).all())
+        # inverse_scale_data rounds prices to 2 decimals; the dataset has 4-decimal ticks
+        self.assertTrue(np.allclose(original_data.Price.values, self.df.Price.values, atol=0.005001))
         self.assertTrue((original_data.Volume.values == self.df.Volume.values).all())
 
 
@@ -172,7 +173,8 @@ class TestFullDataSlidingWindows(unittest.TestCase):
         self.assertListEqual(list(original_data.columns), ['Price', 'Volume'])
         self.assertTrue((original_data.index == self.df.index).all())
         self.assertEqual(len(original_data), len(self.df))
-        self.assertTrue((original_data.Price.values == self.df.Price.values).all())
+        # inverse_scale_data rounds prices to 2 decimals; the dataset has 4-decimal ticks
+        self.assertTrue(np.allclose(original_data.Price.values, self.df.Price.values, atol=0.005001))
         self.assertTrue((original_data.Volume.values == self.df.Volume.values).all())
 
 

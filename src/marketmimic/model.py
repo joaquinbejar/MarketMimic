@@ -8,12 +8,14 @@ from tensorflow.keras.initializers import HeNormal, RandomUniform, GlorotUniform
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.regularizers import l2
+from tensorflow.keras.utils import register_keras_serializable
 
 from marketmimic.constants import LATENT_DIM, DISCRIMINATOR_LEARNING_RATE, GENERATOR_LEARNING_RATE, SEQUENCE_LENGTH, \
     BETA_1, BETA_2, GAN_SIZE, SGD_MOMENTUM
 from marketmimic.metric import *
 
 
+@register_keras_serializable(package="marketmimic")
 class SplitLayer(layers.Layer):
     def __init__(self, index_start, index_end, **kwargs):
         super(SplitLayer, self).__init__(**kwargs)
