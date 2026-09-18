@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools~=70.0.0", "setuptools-scm~=7.1.0", "wheel~=0.41.2"]
+requires = ["setuptools>=84.0", "setuptools-scm>=10.2", "wheel>=0.48"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -14,16 +14,14 @@ requires-python = ">=3.11"
 keywords = ["common", "python", "library"]
 classifiers = ["Programming Language :: Python :: 3.11"]
 dependencies = [
-    "tensorflow~=2.16.1",
-    "tensorflow-macos~=2.16.1",
-    "tensorflow-metal~=1.1.0",
-    "pandas~=2.2.2",
-    "jupyterlab~=4.1.8",
-    "scikit-learn~=1.4.2",
-    "matplotlib~=3.8.4",
-    "mplfinance~=0.12.10b0",
-    "tabulate~=0.9.0",
-    "fastdtw~=0.3.4"
+    "tensorflow>=2.21",
+    "pandas>=3.0",
+    "jupyterlab>=4.6",
+    "scikit-learn>=1.9",
+    "matplotlib>=3.11",
+    "mplfinance>=0.12.10b0",
+    "tabulate>=0.10",
+    "fastdtw>=0.3"
 ]
 
 [tool.setuptools.dynamic]
@@ -31,11 +29,11 @@ readme = { file = ["README.md"], content-type = "text/markdown" }
 
 [project.optional-dependencies]
 tests = [
-    "time-machine==2.12.0",
-    "coverage==7.4.0"
+    "time-machine>=3.5",
+    "coverage>=7.16"
 ]
 extended = [
-    "time-machine==2.12.0"
+    "time-machine>=3.5"
 ]
 
 [tool.setuptools.packages.find]
