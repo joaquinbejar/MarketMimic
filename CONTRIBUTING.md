@@ -52,4 +52,8 @@ To contribute to MarketMimic, please follow these steps:
 4. The pull request will be merged once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
 
 
+## Dependencies
+
+Pull requests must not add dependencies (crates, packages, libraries, actions) that are owned, maintained or published by the pull request's author. If you need functionality from a library you maintain, implement the needed logic directly in this repository instead. PRs that add such a dependency will be asked to remove it before review continues. Any new third party dependency must be justified in the PR description (why it is needed, license, maintenance status).
+
 **Thank you for contributing to MarketMimic!** We appreciate your efforts to improve financial messaging technology.
